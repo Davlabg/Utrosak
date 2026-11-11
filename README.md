@@ -15,6 +15,10 @@ Aplikacija za popunjavanje dnevnog utroška namirnica po šablonu „Utrošak za
 - **Pošalji Excel mejlom** – adrese primalaca se upišu jednom (kartica **Zbir** → *Slanje mejlom*) i pamte se.
   Dugme otvara Gmail (ili drugu mejl aplikaciju) sa upisanim primaocima, naslovom, zbirom u tekstu i Excel fajlom u prilogu;
   ostaje samo da se pritisne „Pošalji”. Dugme je i na dnu kartice **Unos**.
+- **Automatsko slanje** – u *Slanje mejlom → Nalog sa koga se šalje* upišite Gmail adresu (podrazumevano
+  `utrosak.cw.restoran@gmail.com`) i **lozinku za aplikaciju** od 16 slova (myaccount.google.com/apppasswords).
+  Lozinka se čuva samo na telefonu. Tada dugme **Pošalji Excel mejlom** šalje odmah, bez otvaranja Gmail-a
+  (preko smtp.gmail.com, port 465). Dugme „Sačuvaj i pošalji probni mejl” proverava da li prijava radi.
 - **Podeli zbir** – šalje zbir kao tekst (Viber, WhatsApp, e-mail…).
 - Podaci se čuvaju automatski na telefonu. Aplikacija radi bez interneta.
 

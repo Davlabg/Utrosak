@@ -17,6 +17,7 @@ import android.webkit.WebViewClient;
 import android.widget.FrameLayout;
 
 import org.json.JSONArray;
+import org.json.JSONObject;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -32,6 +33,9 @@ public class MainActivity extends Activity {
 
     private static final int REQ_SAVE_XLSX = 41;
     private static final String PREFS = "utrosak_data";
+    /** Nalog za slanje mejla; odvojeno od podataka, lozinka se nikad ne vraća stranici. */
+    private static final String SENDER_PREFS = "utrosak_sender";
+    public static final String DEFAULT_SENDER = "utrosak.cw.restoran@gmail.com";
 
     private WebView web;
     private SharedPreferences prefs;
@@ -162,6 +166,65 @@ public class MainActivity extends Activity {
                     web.evaluateJavascript("window.onXlsxSaved && onXlsxSaved(false)", null);
                 }
             });
+        }
+
+        @JavascriptInterface
+        public String getSenderEmail() {
+            return getSharedPreferences(SENDER_PREFS, MODE_PRIVATE).getString("email", DEFAULT_SENDER);
+        }
+
+        @JavascriptInterface
+        public boolean hasSenderPassword() {
+            return !getSharedPreferences(SENDER_PREFS, MODE_PRIVATE).getString("password", "").isEmpty();
+        }
+
+        /** Prazna lozinka znači: zadrži postojeću. */
+        @JavascriptInterface
+        public void setSender(String email, String password) {
+            SharedPreferences.Editor e = getSharedPreferences(SENDER_PREFS, MODE_PRIVATE).edit();
+            e.putString("email", email.trim());
+            String p = password.replaceAll("\\s+", "");
+            if (!p.isEmpty()) e.putString("password", p);
+            e.apply();
+        }
+
+        @JavascriptInterface
+        public void clearSenderPassword() {
+            getSharedPreferences(SENDER_PREFS, MODE_PRIVATE).edit().remove("password").apply();
+        }
+
+        /** Šalje odmah preko Gmail-a, u pozadini. Rezultat stiže u window.onAutoMailResult(ok, poruka). */
+        @JavascriptInterface
+        public void sendAuto(String toCsv, String subject, String body, String filename, String base64) {
+            SharedPreferences sp = getSharedPreferences(SENDER_PREFS, MODE_PRIVATE);
+            final String user = sp.getString("email", DEFAULT_SENDER);
+            final String pass = sp.getString("password", "");
+            final java.util.List<String> to = new java.util.ArrayList<>();
+            for (String r : toCsv.split(",")) if (!r.trim().isEmpty()) to.add(r.trim());
+            final byte[] bytes = base64 == null || base64.isEmpty() ? null : Base64.decode(base64, Base64.DEFAULT);
+            new Thread(() -> {
+                boolean ok;
+                String msg;
+                if (pass.isEmpty()) {
+                    ok = false;
+                    msg = "Nije upisana lozinka za aplikaciju.";
+                } else {
+                    try {
+                        SmtpSender.send(user, pass, to, subject, body,
+                                filename.replaceAll("[^A-Za-z0-9._-]", "_"), bytes);
+                        ok = true;
+                        msg = "";
+                    } catch (SmtpSender.MailException e) {
+                        ok = false;
+                        msg = e.getMessage();
+                    } catch (Exception e) {
+                        ok = false;
+                        msg = "Slanje nije uspelo. Pokušajte ponovo.";
+                    }
+                }
+                final String js = "window.onAutoMailResult && onAutoMailResult(" + ok + "," + JSONObject.quote(msg) + ")";
+                runOnUiThread(() -> web.evaluateJavascript(js, null));
+            }).start();
         }
 
         /** Otvara mejl aplikaciju sa upisanim primaocima, naslovom, tekstom i Excel prilogom. */

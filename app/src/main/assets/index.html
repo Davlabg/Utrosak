@@ -181,11 +181,21 @@ button{cursor:pointer;border:0;background:none}
     <textarea id="copy-fallback" hidden readonly style="width:100%;min-height:160px"></textarea>
     <div class="card" id="mail-card">
       <h2>Slanje mejlom</h2>
-      <p class="hint" style="margin:0">Excel sa utroškom i zbirom šalje se na ove adrese. Otvoriće se Gmail (ili druga mejl aplikacija) sa svim već upisanim, ostaje samo da pritisnete „Pošalji“.</p>
+      <p class="hint" style="margin:0" id="m-how">Excel sa utroškom i zbirom šalje se na ove adrese. Otvoriće se Gmail (ili druga mejl aplikacija) sa svim već upisanim, ostaje samo da pritisnete „Pošalji“.</p>
+      <div class="eyebrow">Primaoci</div>
       <div class="emails" id="m-list"></div>
       <div class="row"><input type="email" id="m-new" class="grow" placeholder="nova@adresa.com" autocomplete="off" inputmode="email" aria-label="Nova e-mail adresa" style="width:auto;min-height:44px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--surface)">
         <button class="btn btn-ghost" id="m-add">Dodaj</button></div>
       <button class="btn btn-primary" id="b-mail">Pošalji Excel mejlom</button>
+      <span class="status" id="m-sent" hidden></span>
+      <div id="snd" hidden style="display:flex;flex-direction:column;gap:8px;border-top:1px solid var(--line);padding-top:10px">
+        <div class="row"><div class="eyebrow grow">Nalog sa koga se šalje</div><span class="chip" id="snd-state"></span></div>
+        <div class="field"><label for="snd-email">Gmail adresa</label><input type="text" id="snd-email" inputmode="email" autocomplete="off"></div>
+        <div class="field"><label for="snd-pass">Lozinka za aplikaciju (16 slova)</label><input type="text" id="snd-pass" autocomplete="off" autocapitalize="off" spellcheck="false" style="-webkit-text-security:disc"></div>
+        <p class="hint" style="margin:0">Ne obična lozinka, nego „lozinka za aplikaciju“ sa myaccount.google.com/apppasswords. Čuva se samo na ovom telefonu.</p>
+        <div class="row"><button class="btn btn-ghost grow" id="snd-save">Sačuvaj i pošalji probni mejl</button>
+          <button class="btn-text btn-danger" id="snd-clear" hidden>Ukloni lozinku</button></div>
+      </div>
     </div>
   </section>
 
@@ -295,7 +305,7 @@ function renderGroup(g){
 function renderAll(){
   $("f-date").value=S.date;$("s-t1").value=S.potpisi.t1;$("s-t2").value=S.potpisi.t2;$("s-cw").value=S.potpisi.cw;
   $("sample-banner").hidden=!S.primer;
-  renderDishes();Object.keys(GROUPS).forEach(renderGroup);refreshMeta()}
+  renderDishes();Object.keys(GROUPS).forEach(renderGroup);refreshMeta();if(window.renderSentHook)renderSentHook()}
 
 // ---------- totals ----------
 function allItems(){const out=[];
@@ -383,8 +393,8 @@ $("b-clear-sample").onclick=()=>{S=blank(S.date);renderAll();scheduleSave()};
 function show(v){["unos","zbir","ist"].forEach(x=>{$("v-"+x).hidden=x!==v;$("t-"+x).setAttribute("aria-selected",x===v)});
   if(v==="zbir")renderZbir();if(v==="ist")renderHist();window.scrollTo(0,0)}
 let toastT;
-function toast(msg,onUndo){$("toast-t").textContent=msg;const b=$("toast-b");b.hidden=!onUndo;b.onclick=()=>{onUndo&&onUndo();$("toast").hidden=true};
-  $("toast").hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>$("toast").hidden=true,4500)}
+function toast(msg,onUndo,label,ms){$("toast-t").textContent=msg;const b=$("toast-b");b.hidden=!onUndo;b.textContent=label||"Vrati";b.onclick=()=>{onUndo&&onUndo();$("toast").hidden=true};
+  $("toast").hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>$("toast").hidden=true,ms||4500)}
 
 async function openDate(date){const s=await load(date);S=s||blank(date);if(!S.date)S.date=date;renderAll()}
 
@@ -431,6 +441,7 @@ $("m-add").onclick=addEmail;
 $("m-new").addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();addEmail()}});
 document.addEventListener("click",e=>{const b=e.target.closest('[data-act="delmail"]');if(!b)return;const l=emails();l.splice(+b.dataset.i,1);lsSet("emails",l);renderEmails()});
 function sendMail(){
+  if(busy)return;
   if($("m-new").value.trim())addEmail();
   const to=emails();
   if(!to.length){show("zbir");setTimeout(()=>{$("mail-card").scrollIntoView({block:"center"});$("m-new").focus()},50);toast("Dodajte bar jednu e-mail adresu");return}
@@ -442,8 +453,39 @@ function sendMail(){
   const subject="Utrošak CW restoran "+d;
   const data=buildXlsx();
   if(AN&&AN.sendEmail){let bin="";const u8=new Uint8Array(data);for(let i=0;i<u8.length;i+=0x8000)bin+=String.fromCharCode.apply(null,u8.subarray(i,i+0x8000));
-    AN.sendEmail(to.join(","),subject,body,name,btoa(bin));return}
+    const m={to,subject,body,name,b64:btoa(bin)};
+    if(autoOn()){if(busy)return;setBusy(true);lastMail=m;AN.sendAuto(to.join(","),subject,body,name,m.b64);return}
+    openGmail(m);return}
   location.href="mailto:"+to.map(encodeURIComponent).join(",")+"?subject="+encodeURIComponent(subject)+"&body="+encodeURIComponent(body)}
+const AUTO=!!(AN&&AN.sendAuto);
+function autoOn(){try{return AUTO&&AN.hasSenderPassword()}catch(e){return false}}
+function renderSender(){if(!AUTO)return;$("snd").hidden=false;
+  if(!$("snd-email").value)$("snd-email").value=AN.getSenderEmail();
+  const on=autoOn();$("snd-state").textContent=on?"automatsko slanje uključeno":"lozinka nije upisana";
+  $("snd-state").className="chip "+(on?"rep":"warn");$("snd-clear").hidden=!on;
+  $("snd-pass").placeholder=on?"sačuvana (upišite novu da je promenite)":"npr. abcd efgh ijkl mnop";
+  $("m-how").textContent=on?"Excel sa utroškom i zbirom šalje se odmah na ove adrese, sa naloga "+AN.getSenderEmail()+".":
+    "Excel sa utroškom i zbirom šalje se na ove adrese. Dok lozinka nije upisana, otvara se Gmail i ostaje da pritisnete „Pošalji“."}
+function renderSent(){const el=$("m-sent");if(S&&S.poslato){const t=new Date(S.poslato);el.hidden=false;
+  el.textContent="Poslato "+t.toLocaleDateString("sr-RS")+" u "+t.toLocaleTimeString("sr-RS",{hour:"2-digit",minute:"2-digit"})+(S.poslatoNa?" na: "+S.poslatoNa:"")}else el.hidden=true}
+let busy=false,lastMail=null;
+function setBusy(b){busy=b;["b-mail","b-mail2","snd-save"].forEach(id=>{$(id).disabled=b;$(id).style.opacity=b?.6:1});
+  $("b-mail").textContent=$("b-mail2").textContent=b?"Šaljem…":"Pošalji Excel mejlom"}
+window.onAutoMailResult=(ok,msg)=>{setBusy(false);const m=lastMail;lastMail=null;
+  if(ok){if(m&&m.test){toast("Probni mejl je poslat. Automatsko slanje radi.");return}
+    S.poslato=Date.now();S.poslatoNa=m?m.to.join(", "):"";saveNow();renderSent();toast("Poslato na "+(m?m.to.length:"")+(m&&m.to.length===1?" adresu":" adrese"));return}
+  toast(msg||"Slanje nije uspelo.",m&&!m.test?()=>openGmail(m):null,"Gmail",9000)};
+$("snd-save").onclick=()=>{const em=$("snd-email").value.trim();const pw=$("snd-pass").value.replace(/\s+/g,"");
+  if(!EMAIL_RE.test(em)){toast("Gmail adresa nije ispravna");return}
+  if(!pw&&!autoOn()){toast("Upišite lozinku za aplikaciju");$("snd-pass").focus();return}
+  if(pw&&pw.length!==16){toast("Lozinka za aplikaciju ima 16 slova (bez razmaka). Proverite je.");return}
+  AN.setSender(em,pw);$("snd-pass").value="";renderSender();
+  setBusy(true);lastMail={test:true,to:[em]};
+  AN.sendAuto(em,"Utrošak – probni mejl","Ovo je probni mejl iz aplikacije Utrošak. Automatsko slanje radi.","","")};
+$("snd-clear").onclick=()=>{AN.clearSenderPassword();renderSender();toast("Lozinka je uklonjena. Slanje ide preko Gmail aplikacije.")};
+function openGmail(m){AN.sendEmail(m.to.join(","),m.subject,m.body,m.name,m.b64)}
+renderSender();window.renderSentHook=renderSent;renderSent();
+
 window.onMailResult=ok=>{if(!ok)toast("Na telefonu nije pronađena mejl aplikacija")};
 $("b-mail").onclick=sendMail;$("b-mail2").onclick=sendMail;
 renderEmails();
