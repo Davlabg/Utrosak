@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Beli list sa listom stavki i znakom zbira -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M38,30 L70,30 Q74,30 74,34 L74,74 Q74,78 70,78 L38,78 Q34,78 34,74 L34,34 Q34,30 38,30 Z" />
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#2F6B4F"
+        android:strokeWidth="4"
+        android:strokeLineCap="round"
+        android:pathData="M42,41 L66,41 M42,50 L66,50 M42,59 L56,59" />
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#E0A526"
+        android:strokeWidth="4"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M67,62 L58,62 L63,67 L58,72 L67,72" />
+</vector>
