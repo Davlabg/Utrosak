@@ -112,6 +112,10 @@ button{cursor:pointer;border:0;background:none}
 .tabs button svg{width:22px;height:22px}
 .tabs button[aria-selected="true"]{color:var(--accent)}
 .badge{font-variant-numeric:tabular-nums}
+.emails{display:flex;flex-wrap:wrap;gap:6px}
+.email{display:inline-flex;align-items:center;gap:2px;background:var(--accent-soft);color:var(--fg);border-radius:999px;padding:0 0 0 12px;font-size:.92rem;min-height:36px;max-width:100%}
+.email span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.email button{width:36px;height:36px;border-radius:999px;color:var(--muted);font-size:1.1rem}
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(72px + env(safe-area-inset-bottom,0px));z-index:30;
   background:var(--fg);color:var(--bg);border-radius:8px;padding:8px 8px 8px 14px;display:flex;gap:10px;align-items:center;
   max-width:calc(100% - 32px);font-size:.92rem}
@@ -160,9 +164,10 @@ button{cursor:pointer;border:0;background:none}
         <div class="field"><label for="s-cw">CW restoran</label><input type="text" id="s-cw" autocomplete="off"></div>
       </div>
     </div>
+    <button class="btn btn-primary" id="b-mail2">Pošalji Excel mejlom</button>
   </section>
 
-  <section id="v-zbir" hidden>
+  <section id="v-zbir" class="wrap" style="padding:0" hidden>
     <div class="card">
       <div class="row"><h2 class="grow">Zbirni utrošak</h2><span class="chip" id="z-count"></span></div>
       <p class="hint" style="margin:0">Isti artikli iz svih jela, priloga i salata se sabiraju po jedinici mere. Stavke sa − i korekcije se oduzimaju.</p>
@@ -174,6 +179,14 @@ button{cursor:pointer;border:0;background:none}
       <button class="btn btn-ghost grow" id="b-copy">Podeli zbir (Viber, mail…)</button>
     </div>
     <textarea id="copy-fallback" hidden readonly style="width:100%;min-height:160px"></textarea>
+    <div class="card" id="mail-card">
+      <h2>Slanje mejlom</h2>
+      <p class="hint" style="margin:0">Excel sa utroškom i zbirom šalje se na ove adrese. Otvoriće se Gmail (ili druga mejl aplikacija) sa svim već upisanim, ostaje samo da pritisnete „Pošalji“.</p>
+      <div class="emails" id="m-list"></div>
+      <div class="row"><input type="email" id="m-new" class="grow" placeholder="nova@adresa.com" autocomplete="off" inputmode="email" aria-label="Nova e-mail adresa" style="width:auto;min-height:44px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--surface)">
+        <button class="btn btn-ghost" id="m-add">Dodaj</button></div>
+      <button class="btn btn-primary" id="b-mail">Pošalji Excel mejlom</button>
+    </div>
   </section>
 
   <section id="v-ist" hidden>
@@ -405,6 +418,36 @@ $("b-xlsx").onclick=async()=>{
   if(AN){let bin="";const u8=new Uint8Array(data);for(let i=0;i<u8.length;i+=0x8000)bin+=String.fromCharCode.apply(null,u8.subarray(i,i+0x8000));
     AN.saveXlsx(name,btoa(bin));return}
   {try{const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([data]));a.download=name;a.click();toast("Preuzimanje je pokrenuto")}catch(e){toast("Preuzimanje nije dostupno ovde.")}}};
+// ---------- mejl ----------
+const EMAIL_RE=/^[^\s@,;]+@[^\s@,;]+\.[^\s@,;]+$/;
+function emails(){const l=lsGet("emails");return Array.isArray(l)?l:[]}
+function renderEmails(){const l=emails();
+  $("m-list").innerHTML=l.length?l.map((e,i)=>`<span class="email"><span>${esc(e)}</span><button data-act="delmail" data-i="${i}" aria-label="Ukloni ${esc(e)}">×</button></span>`).join("")
+   :`<span class="hint">Još nema adresa. Upišite adresu i pritisnite „Dodaj“.</span>`}
+function addEmail(){const inp=$("m-new");const parts=inp.value.split(/[\s,;]+/).filter(Boolean);if(!parts.length)return;
+  const bad=parts.filter(x=>!EMAIL_RE.test(x));if(bad.length){toast("Adresa nije ispravna: "+bad[0]);return}
+  const l=emails();parts.forEach(x=>{if(!l.some(y=>y.toLowerCase()===x.toLowerCase()))l.push(x)});lsSet("emails",l);inp.value="";renderEmails();toast("Adresa je sačuvana")}
+$("m-add").onclick=addEmail;
+$("m-new").addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();addEmail()}});
+document.addEventListener("click",e=>{const b=e.target.closest('[data-act="delmail"]');if(!b)return;const l=emails();l.splice(+b.dataset.i,1);lsSet("emails",l);renderEmails()});
+function sendMail(){
+  if($("m-new").value.trim())addEmail();
+  const to=emails();
+  if(!to.length){show("zbir");setTimeout(()=>{$("mail-card").scrollIntoView({block:"center"});$("m-new").focus()},50);toast("Dodajte bar jednu e-mail adresu");return}
+  if(!window.XLSX){toast("Excel modul se nije učitao.");return}
+  appFlush();
+  const d=fmtDate(S.date);const name="Utrosak_CW_"+d.replace(/\.$/,"")+".xlsx";
+  const jela=S.jela.filter(j=>j.naziv).map(j=>j.naziv).join(", ");
+  const body="Utrošak za restoran za zaposlene, "+d+"\n"+(jela?"Jela: "+jela+"\n":"")+"\nZbirni utrošak:\n"+totals().map(r=>`${r.name}: ${fmt(r.total)} ${r.jm}`).join("\n")+"\n\nU prilogu je Excel fajl.";
+  const subject="Utrošak CW restoran "+d;
+  const data=buildXlsx();
+  if(AN&&AN.sendEmail){let bin="";const u8=new Uint8Array(data);for(let i=0;i<u8.length;i+=0x8000)bin+=String.fromCharCode.apply(null,u8.subarray(i,i+0x8000));
+    AN.sendEmail(to.join(","),subject,body,name,btoa(bin));return}
+  location.href="mailto:"+to.map(encodeURIComponent).join(",")+"?subject="+encodeURIComponent(subject)+"&body="+encodeURIComponent(body)}
+window.onMailResult=ok=>{if(!ok)toast("Na telefonu nije pronađena mejl aplikacija")};
+$("b-mail").onclick=sendMail;$("b-mail2").onclick=sendMail;
+renderEmails();
+
 $("b-copy").onclick=()=>{
   const txt="Zbirni utrošak "+fmtDate(S.date)+"\n"+totals().map(r=>`${r.name}: ${fmt(r.total)} ${r.jm}`).join("\n");
   if(AN){AN.shareText("Utrošak "+fmtDate(S.date),txt);return}

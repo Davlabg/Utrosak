@@ -18,6 +18,8 @@ import android.widget.FrameLayout;
 
 import org.json.JSONArray;
 
+import java.io.File;
+import java.io.FileOutputStream;
 import java.io.OutputStream;
 import java.util.Map;
 
@@ -158,6 +160,51 @@ public class MainActivity extends Activity {
                 } catch (Exception e) {
                     pendingXlsx = null;
                     web.evaluateJavascript("window.onXlsxSaved && onXlsxSaved(false)", null);
+                }
+            });
+        }
+
+        /** Otvara mejl aplikaciju sa upisanim primaocima, naslovom, tekstom i Excel prilogom. */
+        @JavascriptInterface
+        public void sendEmail(String toCsv, String subject, String body, String filename, String base64) {
+            final Uri uri;
+            try {
+                byte[] bytes = Base64.decode(base64, Base64.DEFAULT);
+                String safe = filename.replaceAll("[^A-Za-z0-9._-]", "_");
+                File dir = AttachmentProvider.dir(MainActivity.this);
+                File[] old = dir.listFiles();
+                if (old != null) for (File f : old) f.delete();
+                File f = new File(dir, safe);
+                try (FileOutputStream out = new FileOutputStream(f)) {
+                    out.write(bytes);
+                }
+                uri = Uri.parse("content://" + AttachmentProvider.AUTHORITY + "/" + Uri.encode(safe));
+            } catch (Exception e) {
+                web.post(() -> web.evaluateJavascript("window.onMailResult && onMailResult(false)", null));
+                return;
+            }
+            final String[] to = toCsv.split("\\s*,\\s*");
+            runOnUiThread(() -> {
+                Intent send = new Intent(Intent.ACTION_SEND);
+                send.setType(AttachmentProvider.MIME_XLSX);
+                send.putExtra(Intent.EXTRA_EMAIL, to);
+                send.putExtra(Intent.EXTRA_SUBJECT, subject);
+                send.putExtra(Intent.EXTRA_TEXT, body);
+                send.putExtra(Intent.EXTRA_STREAM, uri);
+                send.setClipData(android.content.ClipData.newRawUri(filename, uri));
+                send.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                // Ponudi samo mejl aplikacije.
+                send.setSelector(new Intent(Intent.ACTION_SENDTO, Uri.parse("mailto:")));
+                try {
+                    startActivity(send);
+                } catch (Exception e) {
+                    // Nema mejl aplikacije koja prihvata selektor: ponudi sve aplikacije za deljenje.
+                    send.setSelector(null);
+                    try {
+                        startActivity(Intent.createChooser(send, subject));
+                    } catch (Exception e2) {
+                        web.evaluateJavascript("window.onMailResult && onMailResult(false)", null);
+                    }
                 }
             });
         }

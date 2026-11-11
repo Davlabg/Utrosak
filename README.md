@@ -12,6 +12,9 @@ Aplikacija za popunjavanje dnevnog utroška namirnica po šablonu „Utrošak za
   (velika/mala slova i kvačice ne smetaju: „crni luk” = „Crni Luk”). Uz svaki artikal piše odakle dolazi.
   Artikal koji se ponavlja u više jela dobija oznaku „u više jela · sabira se”.
 - **Izvezi u Excel (.xlsx)** – list „Utrošak” (po šablonu) i list „Zbir”.
+- **Pošalji Excel mejlom** – adrese primalaca se upišu jednom (kartica **Zbir** → *Slanje mejlom*) i pamte se.
+  Dugme otvara Gmail (ili drugu mejl aplikaciju) sa upisanim primaocima, naslovom, zbirom u tekstu i Excel fajlom u prilogu;
+  ostaje samo da se pritisne „Pošalji”. Dugme je i na dnu kartice **Unos**.
 - **Podeli zbir** – šalje zbir kao tekst (Viber, WhatsApp, e-mail…).
 - Podaci se čuvaju automatski na telefonu. Aplikacija radi bez interneta.
 
