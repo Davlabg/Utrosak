@@ -2,239 +2,276 @@
 <html lang="sr"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover">
 <title>Utrošak</title>
-<script src="xlsx.full.min.js"></script>
+<script src="xlsx-writer.js"></script>
 <style>
-/* Layout: one-column kitchen form, dish cards stacked, fixed bottom tab bar (Unos / Zbir / Istorija) */
+/* Layout: jedna kolona; kartice jela sa kratkim redovima artikala, unos u donjem prozoru; donja traka sa 4 kartice */
 :root{
   --bg:#eef1ef; --surface:#ffffff; --sunk:#e3e8e5; --line:#c9d2cd;
   --fg:#18211d; --muted:#5b6a63; --accent:#2f6b4f; --accent-ink:#ffffff; --accent-soft:#d8eadf;
-  --minus:#b3402a; --minus-soft:#f6ddd6; --warn:#8a5a00; --warn-soft:#f8ecc9;
+  --minus:#b3402a; --minus-soft:#f6ddd6; --warn:#8a5a00; --warn-soft:#f8ecc9; --scrim:rgba(10,20,15,.45);
   --f-display:"sans-serif-condensed","Roboto Condensed","Arial Narrow",sans-serif;
   --f-body:Roboto,system-ui,sans-serif;
-  --r:10px;
+  --r:12px;
 }
-@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
-  --bg:#111614; --surface:#1a211e; --sunk:#232c28; --line:#34403a;
-  --fg:#e6ece9; --muted:#97a69f; --accent:#6cc196; --accent-ink:#0c1a13; --accent-soft:#1f3b2d;
-  --minus:#f08a72; --minus-soft:#3d221b; --warn:#e9bf5c; --warn-soft:#3a2f12; color-scheme:dark}}
-:root[data-theme="dark"]{
-  --bg:#111614; --surface:#1a211e; --sunk:#232c28; --line:#34403a;
-  --fg:#e6ece9; --muted:#97a69f; --accent:#6cc196; --accent-ink:#0c1a13; --accent-soft:#1f3b2d;
-  --minus:#f08a72; --minus-soft:#3d221b; --warn:#e9bf5c; --warn-soft:#3a2f12; color-scheme:dark}
 html{-webkit-text-size-adjust:100%;-webkit-tap-highlight-color:transparent}
-body{margin:0}
 *{box-sizing:border-box}
 [hidden]{display:none!important}
-body{background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:16px;line-height:1.4;
-  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
+body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:16px;line-height:1.4;
+  padding-left:max(14px,env(safe-area-inset-left,0px));padding-right:max(14px,env(safe-area-inset-right,0px));
   padding-block:0 calc(84px + env(safe-area-inset-bottom,0px))}
-.wrap{max-width:720px;margin:0 auto;display:flex;flex-direction:column;gap:14px;padding-block:14px}
-h1,h2,h3{font-family:var(--f-display);text-wrap:balance;margin:0;letter-spacing:.01em}
-h1{font-size:1.7rem;line-height:1.1}
-h2{font-size:1.3rem}
-.eyebrow{font-size:.75rem;text-transform:uppercase;letter-spacing:.09em;color:var(--muted);font-weight:600}
+.wrap{max-width:720px;margin:0 auto;display:flex;flex-direction:column;gap:12px;padding-block:12px}
+.view{display:flex;flex-direction:column;gap:12px}
+h1,h2,h3{font-family:var(--f-display);margin:0;letter-spacing:.01em;line-height:1.15}
+h1{font-size:1.45rem}
+h2{font-size:1.2rem}
+.eyebrow{font-size:.72rem;text-transform:uppercase;letter-spacing:.09em;color:var(--muted);font-weight:600}
+.hint{font-size:.88rem;color:var(--muted);margin:0}
 .num{font-variant-numeric:tabular-nums}
-input,select,button{font:inherit;color:inherit}
-input[type=text],input[type=date],input[inputmode]{width:100%;min-height:44px;padding:8px 10px;border:1px solid var(--line);
-  border-radius:8px;background:var(--surface)}
-input:focus-visible,button:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
-button{cursor:pointer;border:0;background:none}
-.btn{min-height:44px;padding:0 16px;border-radius:8px;font-weight:600;display:inline-flex;align-items:center;justify-content:center;gap:6px}
+input,select,button,textarea{font:inherit;color:inherit}
+input[type=text],input[type=date],input[type=email],input[inputmode]{width:100%;min-height:46px;padding:8px 12px;border:1px solid var(--line);
+  border-radius:10px;background:var(--surface)}
+input:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+button{cursor:pointer;border:0;background:none;padding:0}
+.btn{min-height:48px;padding:0 18px;border-radius:10px;font-weight:600;display:inline-flex;align-items:center;justify-content:center;gap:8px;text-align:center}
 .btn-primary{background:var(--accent);color:var(--accent-ink)}
 .btn-ghost{border:1px solid var(--line);background:var(--surface)}
 .btn-text{color:var(--accent);font-weight:600;min-height:44px;padding:0 6px}
 .btn-danger{color:var(--minus)}
+.btn[disabled]{opacity:.55}
 .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
 .grow{flex:1 1 0;min-width:0}
+.field label{font-size:.8rem;color:var(--muted);font-weight:600;display:block;margin-bottom:4px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:12px;display:flex;flex-direction:column;gap:10px}
+.chip{display:inline-block;font-size:.72rem;font-weight:600;padding:2px 8px;border-radius:999px;background:var(--sunk);color:var(--muted);white-space:nowrap}
+.chip.ok{background:var(--accent-soft);color:var(--accent)}
+.chip.warn{background:var(--warn-soft);color:var(--warn)}
+.status{font-size:.8rem;color:var(--muted)}
 
-.head{display:flex;flex-direction:column;gap:10px}
-.head .meta{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-.head label,.field label{font-size:.8rem;color:var(--muted);font-weight:600;display:block;margin-bottom:3px}
-.sig{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
-@media (max-width:460px){.sig{grid-template-columns:1fr}}
-
-.banner{background:var(--warn-soft);color:var(--fg);border-radius:var(--r);padding:10px 12px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+/* zaglavlje */
+.top{display:flex;align-items:flex-end;gap:10px}
+.top .date{width:156px;flex:none}
+.top .date input{min-height:44px}
+.banner{background:var(--warn-soft);border-radius:var(--r);padding:10px 12px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
 .banner b{color:var(--warn)}
 
-.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:12px;display:flex;flex-direction:column;gap:10px}
-.card-h{display:flex;gap:8px;align-items:center}
-.card-h input{font-family:var(--f-display);font-size:1.25rem;font-weight:700}
-.sec-h{display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin-top:6px}
-
-.item{border-top:1px solid var(--line);padding-top:10px;display:grid;gap:6px;align-items:center;
-  grid-template-columns:44px 92px minmax(0,1fr) 44px;grid-template-areas:"sign name name del" "sign qty units units"}
-.item:first-of-type{border-top:0;padding-top:0}
-.item .sign{grid-area:sign;align-self:start;width:44px;height:44px;border-radius:8px;font-size:1.4rem;font-weight:700;
-  background:var(--accent-soft);color:var(--accent)}
-.item.neg .sign{background:var(--minus-soft);color:var(--minus)}
-.item .name{grid-area:name;min-width:0}
-.item .qty{grid-area:qty}
-.item .unitlbl{display:none}
-.item .units{grid-area:units;display:flex;gap:4px;flex-wrap:wrap}
-.item .del{grid-area:del}
-.item.neg .qty input{color:var(--minus);border-color:var(--minus)}
-.u{min-height:40px;padding:0 8px;border-radius:999px;border:1px solid var(--line);background:var(--sunk);font-size:.9rem;font-weight:600}
-.u[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
-.icon{width:44px;height:44px;border-radius:8px;display:inline-flex;align-items:center;justify-content:center;color:var(--muted)}
+/* jelo */
+.dish-h{display:flex;gap:6px;align-items:center}
+.dish-h .no{font-family:var(--f-display);font-weight:700;color:var(--muted);min-width:22px}
+.dish-h input{font-family:var(--f-display);font-size:1.2rem;font-weight:700;border-color:transparent;background:var(--sunk)}
+.icon{width:44px;height:44px;border-radius:10px;display:inline-flex;align-items:center;justify-content:center;color:var(--muted);flex:none}
 .icon svg{width:20px;height:20px}
-@media (min-width:560px){
-  .item{grid-template-columns:44px minmax(0,1fr) 100px auto 44px;grid-template-areas:"sign name qty units del"}
-}
-.gn{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;background:var(--sunk);border-radius:8px;padding:8px}
-.gn label{font-size:.72rem;line-height:1.2;color:var(--muted);font-weight:600;display:block;margin-bottom:3px;min-height:2.4em}
-.hint{font-size:.85rem;color:var(--muted)}
-.chip{display:inline-block;font-size:.72rem;font-weight:600;padding:2px 8px;border-radius:999px;background:var(--sunk);color:var(--muted)}
-.chip.warn{background:var(--warn-soft);color:var(--warn)}
-.chip.rep{background:var(--accent-soft);color:var(--accent)}
+.lines{display:flex;flex-direction:column}
+.line{display:grid;grid-template-columns:26px minmax(0,1fr) auto;align-items:center;gap:8px;min-height:48px;padding:6px 2px;
+  border-top:1px solid var(--line);text-align:left;width:100%}
+.line:first-child{border-top:0}
+.line .sg{width:24px;height:24px;border-radius:6px;display:inline-flex;align-items:center;justify-content:center;font-weight:700;
+  background:var(--accent-soft);color:var(--accent);font-size:1rem}
+.line .nm{min-width:0;overflow:hidden;text-overflow:ellipsis}
+.line .nm small{display:block;font-size:.72rem;color:var(--accent);font-weight:600}
+.line .q{font-family:var(--f-display);font-weight:700;font-size:1.15rem;white-space:nowrap}
+.line .q small{font-family:var(--f-body);font-size:.85rem;font-weight:500;color:var(--muted)}
+.line.neg .sg{background:var(--minus-soft);color:var(--minus)}
+.line.neg .q{color:var(--minus)}
+.line.empty .q{color:var(--muted);font-weight:500;font-family:var(--f-body);font-size:.9rem}
+.add{min-height:46px;border:1.5px dashed var(--line);border-radius:10px;color:var(--accent);font-weight:600;width:100%}
+.gn{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;background:var(--sunk);border-radius:10px;padding:8px}
+.gn label{font-size:.72rem;line-height:1.2;color:var(--muted);font-weight:600;display:block;margin-bottom:3px}
+.gn input{min-height:42px;text-align:center}
+.confirm{background:var(--minus-soft);border-radius:10px;padding:8px 10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 
-/* Zbir */
-.sum-list{display:flex;flex-direction:column}
+/* sekcije na sklapanje */
+.sec{padding:0;gap:0}
+.sec-h{display:flex;align-items:center;gap:10px;min-height:56px;padding:6px 12px;width:100%;text-align:left}
+.sec-h .chev{transition:transform .15s;color:var(--muted)}
+.sec.open .sec-h .chev{transform:rotate(90deg)}
+.sec-b{padding:0 12px 12px;display:flex;flex-direction:column;gap:10px}
+.sec:not(.open) .sec-b{display:none}
+.sig{display:grid;grid-template-columns:1fr;gap:8px}
+
+/* zbir */
 .sum{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 12px;padding:10px 0;border-top:1px solid var(--line)}
 .sum:first-child{border-top:0}
 .sum .t{font-weight:600}
-.sum .v{font-family:var(--f-display);font-size:1.35rem;font-weight:700;text-align:right;white-space:nowrap}
+.sum .v{font-family:var(--f-display);font-size:1.3rem;font-weight:700;text-align:right;white-space:nowrap}
 .sum .v small{font-family:var(--f-body);font-size:.85rem;font-weight:500;color:var(--muted)}
-.sum .d{grid-column:1 / -1;font-size:.85rem;color:var(--muted)}
+.sum .d{grid-column:1 / -1;font-size:.84rem;color:var(--muted)}
 .sum .d .m{color:var(--minus)}
-.neg-total .v{color:var(--minus)}
-.search{position:relative}
-
-.hist{display:flex;flex-direction:column}
-.hist button{display:flex;justify-content:space-between;align-items:center;min-height:52px;border-top:1px solid var(--line);text-align:left;padding:0 4px}
+.sum.neg .v{color:var(--minus)}
+.emails{display:flex;flex-wrap:wrap;gap:6px}
+.email{display:inline-flex;align-items:center;background:var(--accent-soft);border-radius:999px;padding-left:12px;font-size:.92rem;min-height:36px;max-width:100%}
+.email span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.email button{width:36px;height:36px;border-radius:999px;color:var(--muted);font-size:1.15rem}
+.hist button{display:flex;justify-content:space-between;align-items:center;gap:10px;min-height:56px;border-top:1px solid var(--line);text-align:left;padding:6px 2px;width:100%}
 .hist button:first-child{border-top:0}
 
+/* donji prozor za unos artikla */
+.scrim{position:fixed;inset:0;background:var(--scrim);z-index:40}
+.sheet{position:fixed;left:0;right:0;bottom:0;z-index:41;background:var(--surface);border-radius:18px 18px 0 0;
+  max-height:92%;overflow-y:auto;display:flex;flex-direction:column;gap:12px;
+  padding:10px max(16px,env(safe-area-inset-right,0px)) calc(14px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));
+  box-shadow:0 -6px 24px rgba(0,0,0,.18)}
+.sheet .grab{width:40px;height:4px;border-radius:2px;background:var(--line);align-self:center}
+.sheet-in{max-width:640px;width:100%;margin:0 auto;display:flex;flex-direction:column;gap:12px}
+.sheet h2 small{display:block;font-family:var(--f-body);font-size:.85rem;font-weight:500;color:var(--muted)}
+.sugg{display:flex;flex-wrap:wrap;gap:6px}
+.sugg button{min-height:38px;padding:0 12px;border-radius:999px;background:var(--sunk);border:1px solid var(--line);font-size:.92rem}
+.qrow{display:grid;grid-template-columns:120px minmax(0,1fr);gap:10px;align-items:end}
+.qrow input{font-family:var(--f-display);font-size:1.5rem;font-weight:700;text-align:center;min-height:52px}
+.seg{display:flex;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--sunk)}
+.seg button{flex:1;min-height:50px;font-weight:600;border-left:1px solid var(--line)}
+.seg button:first-child{border-left:0}
+.seg button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink)}
+.seg.sign button[data-z="-1"][aria-pressed="true"]{background:var(--minus);color:#fff}
+.sheet .acts{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+
 .tabs{position:fixed;left:0;right:0;bottom:0;z-index:20;background:var(--surface);border-top:1px solid var(--line);
-  display:flex;justify-content:center;padding-bottom:env(safe-area-inset-bottom,0px);
-  padding-left:env(safe-area-inset-left,0px);padding-right:env(safe-area-inset-right,0px)}
+  display:flex;justify-content:center;padding-bottom:env(safe-area-inset-bottom,0px)}
 .tabs .in{display:flex;max-width:720px;width:100%}
-.tabs button{flex:1;min-height:60px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
-  font-size:.8rem;font-weight:600;color:var(--muted)}
+.tabs button{flex:1;min-height:62px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
+  font-size:.78rem;font-weight:600;color:var(--muted)}
 .tabs button svg{width:22px;height:22px}
 .tabs button[aria-selected="true"]{color:var(--accent)}
-.badge{font-variant-numeric:tabular-nums}
-.emails{display:flex;flex-wrap:wrap;gap:6px}
-.email{display:inline-flex;align-items:center;gap:2px;background:var(--accent-soft);color:var(--fg);border-radius:999px;padding:0 0 0 12px;font-size:.92rem;min-height:36px;max-width:100%}
-.email span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
-.email button{width:36px;height:36px;border-radius:999px;color:var(--muted);font-size:1.1rem}
-.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(72px + env(safe-area-inset-bottom,0px));z-index:30;
-  background:var(--fg);color:var(--bg);border-radius:8px;padding:8px 8px 8px 14px;display:flex;gap:10px;align-items:center;
-  max-width:calc(100% - 32px);font-size:.92rem}
-.toast button{color:var(--bg);font-weight:700;min-height:36px;padding:0 10px;text-decoration:underline}
-.status{font-size:.78rem;color:var(--muted)}
-.confirm{background:var(--minus-soft);border-radius:8px;padding:8px 10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-@media (prefers-reduced-motion:no-preference){.toast{animation:up .18s ease-out}@keyframes up{from{opacity:.4;transform:translate(-50%,8px)}}}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(74px + env(safe-area-inset-bottom,0px));z-index:50;
+  background:var(--fg);color:var(--bg);border-radius:10px;padding:8px 8px 8px 14px;display:flex;gap:10px;align-items:center;
+  width:max-content;max-width:calc(100% - 28px);font-size:.92rem}
+.toast button{color:var(--bg);font-weight:700;min-height:38px;padding:0 10px;text-decoration:underline}
 @media (max-height:460px){.tabs{display:none}body{padding-bottom:16px}}
 </style>
 </head><body>
 
-<div class="wrap" id="app">
-  <header class="head">
-    <div>
+<div class="wrap">
+  <header class="top">
+    <div class="grow">
       <div class="eyebrow">Miesen Place · CW restoran</div>
-      <h1>Utrošak za restoran za zaposlene</h1>
+      <h1>Utrošak namirnica</h1>
+      <span class="status" id="save-status">Čuva se automatski</span>
     </div>
-    <div class="meta">
-      <div class="field"><label for="f-date">Datum</label><input type="date" id="f-date"></div>
-      <div class="field" style="align-self:end"><span class="status" id="save-status">Čuva se automatski na telefonu</span></div>
-    </div>
+    <div class="field date"><label for="f-date">Datum</label><input type="date" id="f-date"></div>
   </header>
 
-  <section id="v-unos" class="wrap" style="padding:0">
+  <!-- ========== UNOS ========== -->
+  <section id="v-unos" class="view">
     <div class="banner" id="sample-banner" hidden>
-      <span class="grow"><b>Primer liste.</b> Ovo su probni podaci da vidite kako radi.</span>
+      <span class="grow"><b>Primer liste.</b> Probni podaci da vidite kako radi.</span>
       <button class="btn btn-ghost" id="b-clear-sample">Počni praznu listu</button>
     </div>
-    <div id="dishes" class="wrap" style="padding:0"></div>
-    <button class="btn btn-primary" id="b-add-dish">+ Dodaj jelo</button>
-
-    <div class="sec-h"><h2>Besplatni prilozi</h2></div>
-    <div class="card" id="g-prilozi"></div>
-    <div class="sec-h"><h2>Salata</h2></div>
-    <div class="card" id="g-salate"></div>
-    <div class="sec-h"><h2>Salate vezane</h2></div>
-    <div class="card" id="g-vezane"></div>
-    <div class="sec-h"><h2>Korekcije i povrat</h2><span class="hint">oduzima se od zbira</span></div>
-    <div class="card" id="g-korekcije"></div>
-
-    <div class="card">
-      <h2>Potpisi</h2>
-      <div class="sig">
+    <div id="dishes" class="view"></div>
+    <button class="btn btn-ghost" id="b-add-dish">+ Dodaj jelo</button>
+    <div id="groups" class="view"></div>
+    <div class="card sec" id="sec-pot">
+      <button class="sec-h" data-sec="pot"><span class="grow"><h2>Potpisi</h2><span class="hint" id="pot-sum"></span></span>
+        <svg class="chev" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M9 6l6 6-6 6"/></svg></button>
+      <div class="sec-b"><div class="sig">
         <div class="field"><label for="s-t1">Topla 1</label><input type="text" id="s-t1" autocomplete="off"></div>
         <div class="field"><label for="s-t2">Topla 2</label><input type="text" id="s-t2" autocomplete="off"></div>
         <div class="field"><label for="s-cw">CW restoran</label><input type="text" id="s-cw" autocomplete="off"></div>
-      </div>
+      </div></div>
     </div>
-    <button class="btn btn-primary" id="b-mail2">Pošalji Excel mejlom</button>
+    <button class="btn btn-primary" id="b-go-zbir">Pregled zbira i slanje →</button>
   </section>
 
-  <section id="v-zbir" class="wrap" style="padding:0" hidden>
+  <!-- ========== ZBIR ========== -->
+  <section id="v-zbir" class="view" hidden>
     <div class="card">
-      <div class="row"><h2 class="grow">Zbirni utrošak</h2><span class="chip" id="z-count"></span></div>
-      <p class="hint" style="margin:0">Isti artikli iz svih jela, priloga i salata se sabiraju po jedinici mere. Stavke sa − i korekcije se oduzimaju.</p>
-      <div class="search"><input type="text" id="z-q" placeholder="Traži artikal…" autocomplete="off" aria-label="Traži artikal"></div>
-      <div class="sum-list" id="z-list"></div>
-    </div>
-    <div class="row">
-      <button class="btn btn-primary grow" id="b-xlsx">Izvezi u Excel (.xlsx)</button>
-      <button class="btn btn-ghost grow" id="b-copy">Podeli zbir (Viber, mail…)</button>
-    </div>
-    <textarea id="copy-fallback" hidden readonly style="width:100%;min-height:160px"></textarea>
-    <div class="card" id="mail-card">
-      <h2>Slanje mejlom</h2>
-      <p class="hint" style="margin:0" id="m-how">Excel sa utroškom i zbirom šalje se na ove adrese. Otvoriće se Gmail (ili druga mejl aplikacija) sa svim već upisanim, ostaje samo da pritisnete „Pošalji“.</p>
-      <div class="eyebrow">Primaoci</div>
-      <div class="emails" id="m-list"></div>
-      <div class="row"><input type="email" id="m-new" class="grow" placeholder="nova@adresa.com" autocomplete="off" inputmode="email" aria-label="Nova e-mail adresa" style="width:auto;min-height:44px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--surface)">
-        <button class="btn btn-ghost" id="m-add">Dodaj</button></div>
+      <div class="row"><h2 class="grow">Pošalji utrošak</h2><span class="chip" id="m-state"></span></div>
+      <p class="hint" id="m-to"></p>
       <button class="btn btn-primary" id="b-mail">Pošalji Excel mejlom</button>
       <span class="status" id="m-sent" hidden></span>
-      <div id="snd" hidden style="display:flex;flex-direction:column;gap:8px;border-top:1px solid var(--line);padding-top:10px">
-        <div class="row"><div class="eyebrow grow">Nalog sa koga se šalje</div><span class="chip" id="snd-state"></span></div>
-        <div class="field"><label for="snd-email">Gmail adresa</label><input type="text" id="snd-email" inputmode="email" autocomplete="off"></div>
-        <div class="field"><label for="snd-pass">Lozinka za aplikaciju (16 slova)</label><input type="text" id="snd-pass" autocomplete="off" autocapitalize="off" spellcheck="false" style="-webkit-text-security:disc"></div>
-        <p class="hint" style="margin:0">Ne obična lozinka, nego „lozinka za aplikaciju“ sa myaccount.google.com/apppasswords. Čuva se samo na ovom telefonu.</p>
-        <div class="row"><button class="btn btn-ghost grow" id="snd-save">Sačuvaj i pošalji probni mejl</button>
-          <button class="btn-text btn-danger" id="snd-clear" hidden>Ukloni lozinku</button></div>
+      <div class="row">
+        <button class="btn btn-ghost grow" id="b-xlsx">Sačuvaj Excel</button>
+        <button class="btn btn-ghost grow" id="b-share">Podeli kao tekst</button>
       </div>
+    </div>
+    <div class="card">
+      <div class="row"><h2 class="grow">Zbirni utrošak</h2><span class="chip" id="z-count"></span></div>
+      <p class="hint">Isti artikli iz svih jela, priloga i salata se sabiraju po jedinici mere. Stavke sa − se oduzimaju.</p>
+      <input type="text" id="z-q" placeholder="Traži artikal…" autocomplete="off" aria-label="Traži artikal">
+      <div id="z-list"></div>
     </div>
   </section>
 
-  <section id="v-ist" hidden>
+  <!-- ========== ISTORIJA ========== -->
+  <section id="v-ist" class="view" hidden>
     <div class="card">
       <h2>Sačuvane liste</h2>
-      <p class="hint" style="margin:0">Svaki datum je posebna lista. Dodirnite datum da je otvorite.</p>
+      <p class="hint">Svaki datum je posebna lista. Dodirnite datum da je otvorite.</p>
       <div class="hist" id="h-list"></div>
+    </div>
+  </section>
+
+  <!-- ========== PODEŠAVANJA ========== -->
+  <section id="v-pod" class="view" hidden>
+    <div class="card">
+      <h2>Kome se šalje</h2>
+      <p class="hint">Excel se šalje na sve ove adrese.</p>
+      <div class="emails" id="m-list"></div>
+      <div class="row"><input type="email" id="m-new" class="grow" placeholder="nova@adresa.com" autocomplete="off" aria-label="Nova e-mail adresa" style="width:auto">
+        <button class="btn btn-ghost" id="m-add">Dodaj</button></div>
+    </div>
+    <div class="card" id="snd" hidden>
+      <div class="row"><h2 class="grow">Nalog sa koga se šalje</h2><span class="chip" id="snd-state"></span></div>
+      <div class="field"><label for="snd-email">Gmail adresa</label><input type="email" id="snd-email" autocomplete="off"></div>
+      <div class="field"><label for="snd-pass">Lozinka za aplikaciju (16 slova)</label><input type="text" id="snd-pass" autocomplete="off" autocapitalize="off" spellcheck="false" style="-webkit-text-security:disc"></div>
+      <p class="hint">„Lozinka za aplikaciju“ sa myaccount.google.com/apppasswords, ne obična lozinka. Čuva se samo na ovom telefonu. Bez nje se mejl otvara u Gmail-u i šaljete ga ručno.</p>
+      <button class="btn btn-ghost" id="snd-save">Sačuvaj i pošalji probni mejl</button>
+      <button class="btn-text btn-danger" id="snd-clear" hidden>Ukloni lozinku</button>
     </div>
   </section>
 </div>
 
-<datalist id="artikli"></datalist>
-
-<nav class="tabs" role="tablist" aria-label="Prikaz">
-  <div class="in">
-    <button role="tab" id="t-unos" aria-selected="true" data-v="unos">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 20h16M6 16l9-9 3 3-9 9H6z"/></svg>Unos</button>
-    <button role="tab" id="t-zbir" aria-selected="false" data-v="zbir">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 5H6l7 7-7 7h12"/></svg>Zbir <span class="badge" id="t-badge"></span></button>
-    <button role="tab" id="t-ist" aria-selected="false" data-v="ist">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="8"/><path d="M12 8v4l3 2"/></svg>Istorija</button>
+<!-- donji prozor za unos artikla -->
+<div class="scrim" id="scrim" hidden></div>
+<div class="sheet" id="sheet" hidden role="dialog" aria-modal="true" aria-labelledby="sh-title">
+  <div class="grab"></div>
+  <div class="sheet-in">
+    <h2 id="sh-title">Artikal</h2>
+    <div class="field"><label for="sh-name">Artikal</label><input type="text" id="sh-name" autocomplete="off" autocapitalize="sentences" spellcheck="false" placeholder="npr. Crni luk"></div>
+    <div class="sugg" id="sh-sugg"></div>
+    <div class="qrow">
+      <div class="field"><label for="sh-qty">Količina</label><input inputmode="decimal" id="sh-qty" autocomplete="off" placeholder="0"></div>
+      <div class="field"><label>Jedinica mere</label><div class="seg" id="sh-units" role="group" aria-label="Jedinica mere"></div></div>
+    </div>
+    <div class="seg sign" id="sh-sign" role="group" aria-label="Dodaje se ili oduzima">
+      <button data-z="1">+ Dodaje se</button><button data-z="-1">− Oduzima se</button>
+    </div>
+    <div class="acts">
+      <button class="btn btn-ghost" id="sh-cancel">Otkaži</button>
+      <button class="btn btn-primary" id="sh-ok">Sačuvaj</button>
+    </div>
+    <button class="btn btn-ghost" id="sh-next">Sačuvaj i dodaj sledeći</button>
+    <button class="btn-text btn-danger" id="sh-del">Obriši artikal</button>
   </div>
-</nav>
+</div>
+
+<nav class="tabs" role="tablist" aria-label="Prikaz"><div class="in">
+  <button role="tab" id="t-unos" aria-selected="true" data-v="unos">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 20h16M6 16l9-9 3 3-9 9H6z"/></svg>Unos</button>
+  <button role="tab" id="t-zbir" aria-selected="false" data-v="zbir">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 5H6l7 7-7 7h12"/></svg>Zbir i slanje</button>
+  <button role="tab" id="t-ist" aria-selected="false" data-v="ist">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="8"/><path d="M12 8v4l3 2"/></svg>Istorija</button>
+  <button role="tab" id="t-pod" aria-selected="false" data-v="pod">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/></svg>Podešavanja</button>
+</div></nav>
 <div class="toast" id="toast" hidden><span id="toast-t"></span><button id="toast-b" hidden>Vrati</button></div>
 
 <script>
 (function(){
+"use strict";
 const UNITS=["kg","l","kom","kutija"];
 const PRILOZI=[["Pavlaka","kg"],["Majonez","kg"],["Feferoni","kg"],["Parmezan","kg"],["Kečap bistro","kom"],["Senf bistro","kom"],["Aioli","kg"],["Gravalax","kg"]];
 const SALATE=[["Paradajz","kg"],["Krastavac","kg"],["Mixticanza","kg"],["Šargarepa dimidisi","kutija"],["Kupus rendani dimidisi","kutija"],["Sinfonia dimidisi / iceberg","kutija"]];
-const GROUPS={prilozi:"Besplatni prilozi",salate:"Salata",vezane:"Salate vezane",korekcije:"Korekcije"};
+const GROUPS={prilozi:"Besplatni prilozi",salate:"Salata",vezane:"Salate vezane",korekcije:"Korekcije i povrat"};
+const GROUP_HINT={korekcije:"Sve ovde se oduzima od zbira (povrat u magacin, otpis…)."};
 const $=id=>document.getElementById(id);
 const uid=()=>Math.random().toString(36).slice(2,9);
 const today=()=>{const d=new Date();d.setMinutes(d.getMinutes()-d.getTimezoneOffset());return d.toISOString().slice(0,10)};
 const item=(a="",k="",jm="kg",z=1)=>({id:uid(),artikal:a,kol:k,jm,znak:z});
+const newDish=()=>({id:uid(),naziv:"",stavke:[],gn:"",preostalo:"",otpis:""});
+const CHEV='<svg class="chev" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M9 6l6 6-6 6"/></svg>';
+const TRASH='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg>';
 
-function blank(date){return{date,primer:false,potpisi:{t1:"",t2:"",cw:""},
-  jela:[{id:uid(),naziv:"",stavke:[item()],gn:"",preostalo:"",otpis:""}],
+function blank(date){return{date,primer:false,potpisi:{t1:"",t2:"",cw:""},jela:[newDish()],
   prilozi:PRILOZI.map(([a,u])=>item(a,"",u)),salate:SALATE.map(([a,u])=>item(a,"",u)),vezane:[],korekcije:[]}}
 function sample(date){const s=blank(date);s.primer=true;
   s.jela=[
@@ -244,70 +281,39 @@ function sample(date){const s=blank(date);s.primer=true;
   s.prilozi[0].kol="1,2";s.prilozi[1].kol="0,8";s.salate[0].kol="5";s.salate[1].kol="4";
   s.korekcije=[item("Ulje","0,5","l",-1)];return s}
 
-let S=null, saveT=null;
+let S=null,saveT=null;
 
-// ---------- numbers ----------
+// ---------- brojevi i tekst ----------
 function num(v){if(v==null)return 0;const n=parseFloat(String(v).replace(/\s/g,"").replace(",","."));return isFinite(n)?n:0}
 function fmt(n){const r=Math.round(n*1000)/1000;return r.toLocaleString("sr-RS",{maximumFractionDigits:3})}
 function norm(s){return String(s||"").trim().toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/đ/g,"dj").replace(/\s+/g," ")}
+function esc(s){return String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]))}
+function fmtDate(d){const [y,m,dd]=d.split("-");return `${dd}.${m}.${y}.`}
 
-// ---------- storage ----------
+// ---------- čuvanje (Android ili pregledač) ----------
 const LS="utrosak-cw:";const AN=window.Android||null;
 function rawGet(k){try{return AN?AN.getItem(k):localStorage.getItem(k)}catch(e){return null}}
 function rawSet(k,v){try{AN?AN.setItem(k,v):localStorage.setItem(k,v)}catch(e){}}
 function rawKeys(){try{if(AN)return JSON.parse(AN.keys());const o=[];for(let i=0;i<localStorage.length;i++)o.push(localStorage.key(i));return o}catch(e){return[]}}
 function lsGet(k){try{return JSON.parse(rawGet(LS+k))}catch(e){return null}}
 function lsSet(k,v){rawSet(LS+k,JSON.stringify(v))}
-function lsDel(k){try{AN?AN.removeItem(LS+k):localStorage.removeItem(LS+k)}catch(e){}}
 function lsDates(){return rawKeys().filter(k=>k&&k.startsWith(LS+"d:")).map(k=>k.slice(LS.length+2))}
+function scheduleSave(){$("save-status").textContent="Čuvanje…";clearTimeout(saveT);saveT=setTimeout(saveNow,600)}
+function saveNow(){clearTimeout(saveT);saveT=null;S.ts=Date.now();lsSet("d:"+S.date,S);lsSet("last",S.date);$("save-status").textContent="Sačuvano na telefonu ✓"}
+function touched(){if(S.primer){S.primer=false;$("sample-banner").hidden=true}scheduleSave()}
 
-async function load(date){return lsGet("d:"+date)}
-function scheduleSave(){$("save-status").textContent="Čuvanje…";clearTimeout(saveT);saveT=setTimeout(saveNow,700)}
-function saveNow(){
-  clearTimeout(saveT);saveT=null;S.ts=Date.now();lsSet("d:"+S.date,S);lsSet("last",S.date);
-  $("save-status").textContent="Sačuvano na telefonu ✓";
-}
+// ---------- zapamćeni artikli ----------
+function memory(){const m=lsGet("mem");return m&&typeof m==="object"?m:{}}   // norm -> {name, jm, t}
+function remember(it){if(!it.artikal.trim())return;const m=memory();m[norm(it.artikal)]={name:it.artikal.trim(),jm:it.jm,t:Date.now()};
+  const keys=Object.keys(m);if(keys.length>600){keys.sort((a,b)=>m[a].t-m[b].t).slice(0,keys.length-600).forEach(k=>delete m[k])}lsSet("mem",m)}
+function knownNames(){const map=new Map();
+  [...PRILOZI,...SALATE].forEach(([n,u])=>map.set(norm(n),{name:n,jm:u,t:0}));
+  (lsGet("artikli")||[]).forEach(n=>{if(!map.has(norm(n)))map.set(norm(n),{name:n,jm:null,t:1})});
+  const m=memory();Object.keys(m).forEach(k=>map.set(k,m[k]));
+  allItems().forEach(({it})=>{const k=norm(it.artikal);if(k&&!map.has(k))map.set(k,{name:it.artikal.trim(),jm:it.jm,t:2})});
+  return [...map.values()]}
 
-// ---------- render: unos ----------
-function esc(s){return String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]))}
-const TRASH='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg>';
-function itemHTML(it,path){
-  return `<div class="item${it.znak<0?" neg":""}" data-path="${path}" data-id="${it.id}">
-    <button class="sign" data-act="sign" aria-label="${it.znak<0?"Oduzima se — dodirni da se dodaje":"Dodaje se — dodirni da se oduzima"}">${it.znak<0?"−":"+"}</button>
-    <div class="name"><input type="text" list="artikli" data-f="artikal" value="${esc(it.artikal)}" placeholder="Artikal" aria-label="Artikal" autocomplete="off" id="a-${it.id}"></div>
-    <div class="qty"><input inputmode="decimal" data-f="kol" value="${esc(it.kol)}" placeholder="Količina" aria-label="Količina" autocomplete="off" id="k-${it.id}"></div>
-    <span class="unitlbl">${esc(it.jm)}</span>
-    <div class="units" role="group" aria-label="Jedinica mere">${UNITS.map(u=>`<button class="u" data-act="unit" data-u="${u}" aria-pressed="${it.jm===u}">${u}</button>`).join("")}</div>
-    <button class="icon del" data-act="del" aria-label="Obriši stavku">${TRASH}</button>
-  </div>`}
-function renderDishes(){
-  const rep=repeatedSet();
-  $("dishes").innerHTML=S.jela.map((j,i)=>`<div class="card" data-dish="${j.id}">
-    <div class="card-h"><span class="chip">Jelo ${i+1}</span><input type="text" class="grow" data-df="naziv" value="${esc(j.naziv)}" placeholder="Naziv jela" aria-label="Naziv jela" id="n-${j.id}">
-      <button class="icon" data-act="deldish" aria-label="Obriši jelo">${TRASH}</button></div>
-    <div class="confirm" data-confirm hidden><span class="grow">Obrisati celo jelo?</span><button class="btn btn-ghost" data-act="no">Ne</button><button class="btn btn-danger btn-ghost" data-act="yes">Obriši</button></div>
-    <div class="eyebrow">Sastav i količina</div>
-    <div class="items">${j.stavke.map(it=>itemHTML(it,"jela:"+j.id)).join("")}</div>
-    <div class="row"><button class="btn-text" data-act="additem" data-path="jela:${j.id}">+ Dodaj artikal</button>
-      <button class="btn-text btn-danger" data-act="addminus" data-path="jela:${j.id}">− Oduzmi artikal</button></div>
-    <div class="gn">
-      <div><label for="g1-${j.id}">Napravljeno GN</label><input inputmode="decimal" data-df="gn" value="${esc(j.gn)}" id="g1-${j.id}"></div>
-      <div><label for="g2-${j.id}">Preostalo u GN</label><input inputmode="decimal" data-df="preostalo" value="${esc(j.preostalo)}" id="g2-${j.id}"></div>
-      <div><label for="g3-${j.id}">Otpis u porcijama</label><input inputmode="decimal" data-df="otpis" value="${esc(j.otpis)}" id="g3-${j.id}"></div>
-    </div>
-  </div>`).join("");
-  markRepeats(rep)}
-function renderGroup(g){
-  const el=$("g-"+g);
-  el.innerHTML=`<div class="items">${S[g].map(it=>itemHTML(it,g)).join("")||`<p class="hint" style="margin:0">Nema stavki.</p>`}</div>
-   <div class="row"><button class="btn-text" data-act="additem" data-path="${g}">+ Dodaj</button>
-   ${g!=="korekcije"?`<button class="btn-text btn-danger" data-act="addminus" data-path="${g}">− Oduzmi</button>`:`<button class="btn-text btn-danger" data-act="addminus" data-path="${g}">− Dodaj povrat / otpis</button>`}</div>`}
-function renderAll(){
-  $("f-date").value=S.date;$("s-t1").value=S.potpisi.t1;$("s-t2").value=S.potpisi.t2;$("s-cw").value=S.potpisi.cw;
-  $("sample-banner").hidden=!S.primer;
-  renderDishes();Object.keys(GROUPS).forEach(renderGroup);refreshMeta();if(window.renderSentHook)renderSentHook()}
-
-// ---------- totals ----------
+// ---------- zbir ----------
 function allItems(){const out=[];
   S.jela.forEach((j,i)=>j.stavke.forEach(it=>out.push({it,src:j.naziv||("Jelo "+(i+1))})));
   Object.keys(GROUPS).forEach(g=>S[g].forEach(it=>out.push({it,src:GROUPS[g]})));return out}
@@ -321,116 +327,195 @@ function totals(){const map=new Map();
   return rows.sort((a,b)=>a.name.localeCompare(b.name,"sr"))}
 function repeatedSet(){const c={};S.jela.forEach(j=>{const seen=new Set();j.stavke.forEach(it=>{const n=norm(it.artikal);if(n&&!seen.has(n)){seen.add(n);c[n]=(c[n]||0)+1}})});
   return new Set(Object.keys(c).filter(k=>c[k]>1))}
-function markRepeats(rep){rep=rep||repeatedSet();
-  document.querySelectorAll('#dishes .item').forEach(row=>{const inp=row.querySelector('[data-f=artikal]');
-    let chip=row.querySelector('.repchip');const on=rep.has(norm(inp.value));
-    if(on&&!chip){chip=document.createElement("span");chip.className="chip rep repchip";chip.textContent="u više jela · sabira se";chip.style.justifySelf="start";row.querySelector('.name').appendChild(chip)}
-    if(!on&&chip)chip.remove()})}
-function refreshMeta(){
-  const opts=new Set([...PRILOZI,...SALATE].map(p=>p[0]));allItems().forEach(({it})=>it.artikal.trim()&&opts.add(it.artikal.trim()));
-  (lsGet("artikli")||[]).forEach(a=>opts.add(a));
-  $("artikli").innerHTML=[...opts].sort((a,b)=>a.localeCompare(b,"sr")).map(a=>`<option value="${esc(a)}">`).join("");
-  $("t-badge").textContent=totals().length?"("+totals().length+")":""}
-function rememberArtikal(a){a=a.trim();if(!a)return;const l=lsGet("artikli")||[];if(!l.some(x=>norm(x)===norm(a))){l.push(a);lsSet("artikli",l.slice(-400))}}
 
-function renderZbir(){
-  const q=norm($("z-q").value);const rows=totals().filter(r=>!q||r.n.includes(q));
-  $("z-count").textContent=totals().length+" artikala";
-  $("z-list").innerHTML=rows.map(r=>{
-    const parts=r.parts.map(p=>p.q<0?`<span class="m">${esc(p.src)} −${fmt(-p.q)}</span>`:`${esc(p.src)} ${fmt(p.q)}`).join(" · ");
-    return `<div class="sum${r.total<0?" neg-total":""}"><div class="t">${esc(r.name)} ${r.parts.length>1?`<span class="chip rep">${r.parts.length}×</span>`:""} ${r.multiUnit?`<span class="chip warn">i u drugoj jedinici</span>`:""}</div>
-      <div class="v num">${fmt(r.total)} <small>${esc(r.jm)}</small></div><div class="d num">${parts}</div></div>`}).join("")
-    ||`<p class="hint">Još nema unetih količina. Upišite artikle i količine na kartici Unos.</p>`}
+// ---------- prikaz: unos ----------
+function lineHTML(it,path,rep){
+  const q=num(it.kol);const has=String(it.kol).trim()!=="";
+  return `<button class="line${it.znak<0?" neg":""}${has?"":" empty"}" data-act="edit" data-path="${path}" data-id="${it.id}">
+    <span class="sg">${it.znak<0?"−":"+"}</span>
+    <span class="nm">${esc(it.artikal)||"<i>bez naziva</i>"}${rep&&rep.has(norm(it.artikal))?"<small>i u drugim jelima · sabira se</small>":""}</span>
+    <span class="q num">${has?(it.znak<0?"−":"")+fmt(q)+` <small>${esc(it.jm)}</small>`:"upiši"}</span></button>`}
+function renderDishes(){const rep=repeatedSet();
+  $("dishes").innerHTML=S.jela.map((j,i)=>`<div class="card" data-dish="${j.id}">
+    <div class="dish-h"><span class="no">${i+1}.</span><input type="text" class="grow" data-df="naziv" value="${esc(j.naziv)}" placeholder="Naziv jela" aria-label="Naziv jela" id="n-${j.id}" autocomplete="off">
+      <button class="icon" data-act="deldish" aria-label="Obriši jelo">${TRASH}</button></div>
+    <div class="confirm" data-confirm hidden><span class="grow">Obrisati jelo „${esc(j.naziv)||"bez naziva"}“?</span><button class="btn btn-ghost" data-act="no">Ne</button><button class="btn btn-ghost btn-danger" data-act="yes">Obriši</button></div>
+    ${j.stavke.length?`<div class="lines">${j.stavke.map(it=>lineHTML(it,"jela:"+j.id,rep)).join("")}</div>`:`<p class="hint">Još nema artikala.</p>`}
+    <button class="add" data-act="add" data-path="jela:${j.id}">+ Dodaj artikal</button>
+    <div class="gn">
+      <div><label for="g1-${j.id}">Napravljeno GN</label><input inputmode="decimal" data-df="gn" value="${esc(j.gn)}" id="g1-${j.id}"></div>
+      <div><label for="g2-${j.id}">Preostalo GN</label><input inputmode="decimal" data-df="preostalo" value="${esc(j.preostalo)}" id="g2-${j.id}"></div>
+      <div><label for="g3-${j.id}">Otpis porcija</label><input inputmode="decimal" data-df="otpis" value="${esc(j.otpis)}" id="g3-${j.id}"></div>
+    </div></div>`).join("")}
+function openSecs(){const o=lsGet("open");return o&&typeof o==="object"?o:{}}
+function renderGroups(){const o=openSecs();
+  $("groups").innerHTML=Object.keys(GROUPS).map(g=>{const filled=S[g].filter(it=>it.artikal&&String(it.kol).trim()!=="").length;
+    const sum=filled?`${filled} upisano`:(S[g].length?"ništa nije upisano":"prazno");
+    return `<div class="card sec${o[g]?" open":""}" id="sec-${g}">
+      <button class="sec-h" data-sec="${g}"><span class="grow"><h2>${GROUPS[g]}</h2><span class="hint">${sum}</span></span>${filled?`<span class="chip ok">${filled}</span>`:""}${CHEV}</button>
+      <div class="sec-b">${GROUP_HINT[g]?`<p class="hint">${GROUP_HINT[g]}</p>`:""}
+        ${S[g].length?`<div class="lines">${S[g].map(it=>lineHTML(it,g)).join("")}</div>`:""}
+        <button class="add" data-act="add" data-path="${g}">+ Dodaj</button></div></div>`}).join("");
+  $("sec-pot").classList.toggle("open",!!o.pot);renderPotSum()}
+function renderPotSum(){const p=S.potpisi;const n=[p.t1,p.t2,p.cw].filter(x=>x.trim()).length;$("pot-sum").textContent=n?`${n} od 3 upisano`:"nije upisano"}
+function renderAll(){
+  $("f-date").value=S.date;$("s-t1").value=S.potpisi.t1;$("s-t2").value=S.potpisi.t2;$("s-cw").value=S.potpisi.cw;
+  $("sample-banner").hidden=!S.primer;renderDishes();renderGroups();renderSent()}
 
-async function renderHist(){
-  let dates=new Set(lsDates());
-  dates.add(S.date);
-  const list=[...dates].sort().reverse();
-  $("h-list").innerHTML=list.map(d=>{const s=d===S.date?S:lsGet("d:"+d);const n=s?s.jela.filter(j=>j.naziv).map(j=>j.naziv).join(", "):"";
-    return `<button data-date="${d}"><span style="min-width:0"><span class="num" style="font-weight:600">${fmtDate(d)}</span><br><span class="hint">${esc(n)||"bez jela"}</span></span><span class="chip${d===S.date?" rep":""}">${d===S.date?"otvorena":"otvori"}</span></button>`}).join("")}
-function fmtDate(d){const [y,m,dd]=d.split("-");return `${dd}.${m}.${y}.`}
-
-// ---------- events ----------
-function findItem(path,id){const [g,dish]=path.split(":");const arr=g==="jela"?S.jela.find(j=>j.id===dish).stavke:S[g];return {arr,idx:arr.findIndex(x=>x.id===id)}}
+// ---------- prozor za artikal ----------
+let SH=null; // {path, id|null, z, jm}
 function arrFor(path){const [g,dish]=path.split(":");return g==="jela"?S.jela.find(j=>j.id===dish).stavke:S[g]}
-function rerenderPath(path){if(path.startsWith("jela"))renderDishes();else renderGroup(path)}
-function touched(){if(S.primer){S.primer=false;$("sample-banner").hidden=true}scheduleSave()}
+function ctxTitle(path){const [g,dish]=path.split(":");if(g==="jela"){const i=S.jela.findIndex(j=>j.id===dish);return S.jela[i].naziv||("Jelo "+(i+1))}return GROUPS[g]}
+function openSheet(path,id){
+  const arr=arrFor(path);const it=id?arr.find(x=>x.id===id):null;
+  const last=arr[arr.length-1];
+  SH={path,id:it?it.id:null,z:it?it.znak:(path==="korekcije"?-1:1),jm:it?it.jm:(last?last.jm:"kg")};
+  $("sh-title").innerHTML=(it?"Izmena artikla":"Novi artikal")+`<small>${esc(ctxTitle(path))}</small>`;
+  $("sh-name").value=it?it.artikal:"";$("sh-qty").value=it?it.kol:"";
+  $("sh-del").hidden=!it;$("sh-next").hidden=!!it;
+  paintSheet();renderSugg();
+  $("scrim").hidden=false;$("sheet").hidden=false;$("sheet").scrollTop=0;
+  setTimeout(()=>{(it&&it.artikal?$("sh-qty"):$("sh-name")).focus();if(it&&it.artikal)$("sh-qty").select()},60)}
+function closeSheet(){SH=null;$("sheet").hidden=true;$("scrim").hidden=true;if(document.activeElement)document.activeElement.blur()}
+function paintSheet(){
+  $("sh-units").innerHTML=UNITS.map(u=>`<button data-u="${u}" aria-pressed="${SH.jm===u}">${u}</button>`).join("");
+  $("sh-sign").querySelectorAll("button").forEach(b=>b.setAttribute("aria-pressed",String(+b.dataset.z===SH.z)))}
+function renderSugg(){
+  const q=norm($("sh-name").value);const list=knownNames();
+  let hits;
+  if(!q)hits=list.filter(x=>x.t>2).sort((a,b)=>b.t-a.t);
+  else hits=list.filter(x=>norm(x.name).includes(q)&&norm(x.name)!==q)
+     .sort((a,b)=>(norm(b.name).startsWith(q)-norm(a.name).startsWith(q))||(b.t-a.t)||a.name.localeCompare(b.name,"sr"));
+  hits=hits.slice(0,8);
+  $("sh-sugg").innerHTML=hits.map(h=>`<button data-name="${esc(h.name)}" data-jm="${h.jm||""}">${esc(h.name)}</button>`).join("");
+  $("sh-sugg").hidden=!hits.length}
+function saveSheet(next){
+  const name=$("sh-name").value.trim();
+  if(!name){toast("Upišite naziv artikla");$("sh-name").focus();return}
+  const arr=arrFor(SH.path);let it=SH.id?arr.find(x=>x.id===SH.id):null;
+  if(!it){it=item();arr.push(it)}
+  it.artikal=name;it.kol=$("sh-qty").value.trim();it.jm=SH.jm;it.znak=SH.z;
+  remember(it);touched();
+  const path=SH.path;rerender(path);
+  if(next){openSheet(path,null)}else closeSheet()}
+function rerender(path){if(path.startsWith("jela"))renderDishes();else renderGroups()}
 
-document.addEventListener("input",e=>{
-  const t=e.target;
-  const row=t.closest(".item");
-  if(row&&t.dataset.f){const {arr,idx}=findItem(row.dataset.path,row.dataset.id);arr[idx][t.dataset.f]=t.value;
-    if(t.dataset.f==="artikal"&&row.dataset.path.startsWith("jela"))markRepeats();touched();refreshMeta();return}
+$("sh-name").addEventListener("input",renderSugg);
+$("sh-name").addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();$("sh-qty").focus()}});
+$("sh-qty").addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();saveSheet(!SH.id)}});
+$("sh-sugg").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;
+  $("sh-name").value=b.dataset.name;if(b.dataset.jm&&UNITS.includes(b.dataset.jm)){SH.jm=b.dataset.jm;paintSheet()}
+  renderSugg();$("sh-qty").focus()});
+$("sh-units").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;SH.jm=b.dataset.u;paintSheet()});
+$("sh-sign").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;SH.z=+b.dataset.z;paintSheet()});
+$("sh-ok").onclick=()=>saveSheet(false);
+$("sh-next").onclick=()=>saveSheet(true);
+$("sh-cancel").onclick=closeSheet;$("scrim").onclick=closeSheet;
+$("sh-del").onclick=()=>{const path=SH.path;const arr=arrFor(path);const idx=arr.findIndex(x=>x.id===SH.id);if(idx<0)return closeSheet();
+  const [gone]=arr.splice(idx,1);closeSheet();rerender(path);touched();
+  toast("„"+(gone.artikal||"Artikal")+"“ obrisan",()=>{arrFor(path).splice(idx,0,gone);rerender(path);scheduleSave()})};
+
+// ---------- događaji na stranici ----------
+document.addEventListener("input",e=>{const t=e.target;
   const dish=t.closest("[data-dish]");
   if(dish&&t.dataset.df){S.jela.find(j=>j.id===dish.dataset.dish)[t.dataset.df]=t.value;touched();return}
-  if(t.id==="s-t1"||t.id==="s-t2"||t.id==="s-cw"){S.potpisi[t.id.slice(2)]=t.value;touched();return}
-  if(t.id==="z-q")renderZbir();
-});
-document.addEventListener("change",e=>{const t=e.target;if(t.dataset.f==="artikal")rememberArtikal(t.value)});
-$("f-date").addEventListener("change",async e=>{if(!e.target.value)return;clearTimeout(saveT);saveNow();await openDate(e.target.value)});
+  if(t.id==="s-t1"||t.id==="s-t2"||t.id==="s-cw"){S.potpisi[t.id.slice(2)]=t.value;renderPotSum();touched();return}
+  if(t.id==="z-q")renderZbir()});
+document.addEventListener("change",e=>{if(e.target.dataset.df==="naziv")renderDishes()});
+$("f-date").addEventListener("change",e=>{if(!e.target.value)return;saveNow();openDate(e.target.value)});
 
 document.addEventListener("click",e=>{
-  const b=e.target.closest("button");if(!b)return;
-  const act=b.dataset.act;const row=b.closest(".item");
-  if(act==="sign"){const {arr,idx}=findItem(row.dataset.path,row.dataset.id);arr[idx].znak*=-1;rerenderPath(row.dataset.path);touched();refreshMeta()}
-  else if(act==="unit"){const {arr,idx}=findItem(row.dataset.path,row.dataset.id);arr[idx].jm=b.dataset.u;
-    row.querySelectorAll(".u").forEach(x=>x.setAttribute("aria-pressed",x===b));row.querySelector(".unitlbl").textContent=b.dataset.u;touched();refreshMeta()}
-  else if(act==="del"){const path=row.dataset.path;const {arr,idx}=findItem(path,row.dataset.id);const [gone]=arr.splice(idx,1);
-    rerenderPath(path);touched();refreshMeta();toast("Stavka obrisana",()=>{arrFor(path).splice(idx,0,gone);rerenderPath(path);scheduleSave();refreshMeta()})}
-  else if(act==="additem"||act==="addminus"){const path=b.dataset.path;const arr=arrFor(path);const last=arr[arr.length-1];
-    const it=item("","",last?last.jm:"kg",(act==="addminus"||path==="korekcije")?-1:1);arr.push(it);rerenderPath(path);touched();
-    const inp=$("a-"+it.id);inp&&inp.focus()}
+  const b=e.target.closest("button");if(!b||b.closest("#sheet"))return;
+  const act=b.dataset.act;
+  if(act==="edit")openSheet(b.dataset.path,b.dataset.id);
+  else if(act==="add")openSheet(b.dataset.path,null);
   else if(act==="deldish"){b.closest("[data-dish]").querySelector("[data-confirm]").hidden=false}
   else if(act==="no"){b.closest("[data-confirm]").hidden=true}
   else if(act==="yes"){const id=b.closest("[data-dish]").dataset.dish;const idx=S.jela.findIndex(j=>j.id===id);const [gone]=S.jela.splice(idx,1);
-    renderDishes();touched();refreshMeta();toast("Jelo obrisano",()=>{S.jela.splice(idx,0,gone);renderDishes();scheduleSave();refreshMeta()})}
-  else if(b.dataset.date){clearTimeout(saveT);saveNow();openDate(b.dataset.date).then(()=>show("unos"))}
-  else if(b.dataset.v){show(b.dataset.v)}
-});
-$("b-add-dish").onclick=()=>{const j={id:uid(),naziv:"",stavke:[item()],gn:"",preostalo:"",otpis:""};S.jela.push(j);renderDishes();touched();$("n-"+j.id).focus()};
+    renderDishes();touched();toast("Jelo obrisano",()=>{S.jela.splice(idx,0,gone);renderDishes();scheduleSave()})}
+  else if(b.dataset.sec){const o=openSecs();o[b.dataset.sec]=!o[b.dataset.sec];lsSet("open",o);$("sec-"+b.dataset.sec).classList.toggle("open",o[b.dataset.sec])}
+  else if(act==="delmail"){const l=emails();l.splice(+b.dataset.i,1);lsSet("emails",l);renderEmails()}
+  else if(b.dataset.date){saveNow();openDate(b.dataset.date);show("unos")}
+  else if(b.dataset.v)show(b.dataset.v)});
+$("b-add-dish").onclick=()=>{const j=newDish();S.jela.push(j);renderDishes();touched();const n=$("n-"+j.id);n.focus();n.scrollIntoView({block:"center"})};
 $("b-clear-sample").onclick=()=>{S=blank(S.date);renderAll();scheduleSave()};
+$("b-go-zbir").onclick=()=>show("zbir");
 
-function show(v){["unos","zbir","ist"].forEach(x=>{$("v-"+x).hidden=x!==v;$("t-"+x).setAttribute("aria-selected",x===v)});
-  if(v==="zbir")renderZbir();if(v==="ist")renderHist();window.scrollTo(0,0)}
+function show(v){if(SH)closeSheet();["unos","zbir","ist","pod"].forEach(x=>{$("v-"+x).hidden=x!==v;$("t-"+x).setAttribute("aria-selected",String(x===v))});
+  if(v==="zbir"){renderZbir();renderMailState()}if(v==="ist")renderHist();if(v==="pod"){renderEmails();renderSender()}window.scrollTo(0,0)}
 let toastT;
-function toast(msg,onUndo,label,ms){$("toast-t").textContent=msg;const b=$("toast-b");b.hidden=!onUndo;b.textContent=label||"Vrati";b.onclick=()=>{onUndo&&onUndo();$("toast").hidden=true};
-  $("toast").hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>$("toast").hidden=true,ms||4500)}
+function toast(msg,onAct,label,ms){$("toast-t").textContent=msg;const b=$("toast-b");b.hidden=!onAct;b.textContent=label||"Vrati";
+  b.onclick=()=>{$("toast").hidden=true;onAct&&onAct()};$("toast").hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>$("toast").hidden=true,ms||4500)}
+function openDate(date){S=lsGet("d:"+date)||blank(date);if(!S.date)S.date=date;renderAll()}
 
-async function openDate(date){const s=await load(date);S=s||blank(date);if(!S.date)S.date=date;renderAll()}
+// ---------- zbir, istorija ----------
+function renderZbir(){const all=totals();const q=norm($("z-q").value);const rows=all.filter(r=>!q||r.n.includes(q));
+  $("z-count").textContent=all.length+" artikala";
+  $("z-list").innerHTML=rows.map(r=>{
+    const parts=r.parts.map(p=>p.q<0?`<span class="m">${esc(p.src)} −${fmt(-p.q)}</span>`:`${esc(p.src)} ${fmt(p.q)}`).join(" · ");
+    return `<div class="sum${r.total<0?" neg":""}"><div class="t">${esc(r.name)} ${r.multiUnit?`<span class="chip warn">i u drugoj jedinici</span>`:""}</div>
+      <div class="v num">${fmt(r.total)} <small>${esc(r.jm)}</small></div><div class="d num">${parts}</div></div>`}).join("")
+    ||`<p class="hint">Još nema unetih količina.</p>`}
+function renderHist(){const dates=new Set(lsDates());dates.add(S.date);
+  $("h-list").innerHTML=[...dates].sort().reverse().map(d=>{const s=d===S.date?S:lsGet("d:"+d);const n=s?s.jela.filter(j=>j.naziv).map(j=>j.naziv).join(", "):"";
+    const sent=s&&s.poslato?`<span class="chip ok">poslato</span>`:"";
+    return `<button data-date="${d}"><span style="min-width:0"><span class="num" style="font-weight:600">${fmtDate(d)}</span><br><span class="hint">${esc(n)||"bez jela"}</span></span><span class="row" style="flex:none">${sent}<span class="chip">${d===S.date?"otvorena":"otvori"}</span></span></button>`}).join("")}
 
-// ---------- export ----------
+// ---------- Excel ----------
 function buildXlsx(){
-  const X=window.XLSX;const A=[];const d=fmtDate(S.date);
-  A.push(["Miesen Place CW restoran — Utrošak za restoran za zaposlene","","","","Datum:",d]);
-  A.push([]);
+  const W=window.XlsxWriter,st=W.S,d=fmtDate(S.date);
+  const cell=(v,s)=>({v,s});const n=v=>String(v).trim()===""?"":num(v);
+  // list 1: utrošak po šablonu
+  const R=[],M=[];const add=(row,h)=>{R.push(h?{cells:row,h}:row);return R.length};
+  let r=add([cell("Utrošak za restoran za zaposlene",st.title)],28);M.push(`A${r}:D${r}`);
+  r=add([cell("Miesen Place · CW restoran",st.sub),null,cell("Datum: "+d,st.textBold),cell("",st.textBold)]);M.push(`C${r}:D${r}`);
+  add([]);
+  const table=(title,titleStyle,items,num2)=>{
+    r=add([cell(title,titleStyle),cell("",titleStyle),cell("",titleStyle),cell("",titleStyle)],22);M.push(`A${r}:D${r}`);
+    add([cell("Artikal",st.head),cell("Količina",st.head),cell("JM",st.head),cell("Otpis / oduzeto",st.head)],20);
+    items.forEach(it=>add(it.znak<0?[cell(it.artikal,st.text),cell("",st.num),cell(it.jm,st.center),cell(n(it.kol),st.minus)]
+      :[cell(it.artikal,st.text),cell(n(it.kol),st.num),cell(it.jm,st.center),cell("",st.num)]))};
   S.jela.forEach((j,i)=>{
-    A.push(["Naziv jela: "+(j.naziv||("Jelo "+(i+1)))]);
-    A.push(["Sastav:","Količina:","JM","Otpis:"]);
-    j.stavke.filter(it=>it.artikal||it.kol).forEach(it=>A.push(it.znak<0?[it.artikal,"",it.jm,num(it.kol)]:[it.artikal,num(it.kol),it.jm,""]));
-    A.push(["koliko je napravljeno GN","preostala količina u GN","otpis u porcijama"]);
-    A.push([j.gn===""?"":num(j.gn),j.preostalo===""?"":num(j.preostalo),j.otpis===""?"":num(j.otpis)]);
-    A.push([]);
-  });
-  Object.keys(GROUPS).forEach(g=>{const rows=S[g].filter(it=>it.artikal&&it.kol!=="");if(!rows.length&&g!=="prilozi"&&g!=="salate")return;
-    A.push([GROUPS[g]+":"]);A.push(["Artikal","Količina","JM","Otpis/povrat"]);
-    S[g].filter(it=>it.artikal).forEach(it=>A.push(it.znak<0?[it.artikal,"",it.jm,it.kol===""?"":num(it.kol)]:[it.artikal,it.kol===""?"":num(it.kol),it.jm,""]));A.push([])});
-  A.push(["Potpis (topla 1): "+S.potpisi.t1,"","Potpis (topla 2): "+S.potpisi.t2,"","Potpis (CW rest.): "+S.potpisi.cw]);
-  const ws1=X.utils.aoa_to_sheet(A);ws1["!cols"]=[{wch:30},{wch:22},{wch:10},{wch:18},{wch:10},{wch:12}];
-  const T=[["Zbirni utrošak — "+d],[],["Artikal","JM","Ukupno","Dodato","Oduzeto","Gde se koristi"]];
-  totals().forEach(r=>T.push([r.name,r.jm,Math.round(r.total*1000)/1000,Math.round(r.plus*1000)/1000,Math.round(r.minus*1000)/1000,r.parts.map(p=>p.src+" "+fmt(p.q)).join("; ")]));
-  const ws2=X.utils.aoa_to_sheet(T);ws2["!cols"]=[{wch:28},{wch:8},{wch:10},{wch:10},{wch:10},{wch:60}];
-  const wb=X.utils.book_new();X.utils.book_append_sheet(wb,ws1,"Utrošak");X.utils.book_append_sheet(wb,ws2,"Zbir");
-  return X.write(wb,{bookType:"xlsx",type:"array"})}
+    const items=j.stavke.filter(it=>it.artikal);
+    if(!items.length&&!j.naziv)return;
+    table((i+1)+". "+(j.naziv||"Jelo "+(i+1)),st.dish,items);
+    if(j.gn!==""||j.preostalo!==""||j.otpis!==""){
+      const t=[j.gn!==""?"Napravljeno: "+j.gn+" GN":"",j.preostalo!==""?"Preostalo: "+j.preostalo+" GN":"",j.otpis!==""?"Otpis: "+j.otpis+" porcija":""].filter(Boolean).join("     ·     ");
+      r=add([cell(t,st.label),cell("",st.label),cell("",st.label),cell("",st.label)]);M.push(`A${r}:D${r}`)}
+    add([])});
+  Object.keys(GROUPS).forEach(g=>{const items=S[g].filter(it=>it.artikal&&String(it.kol).trim()!=="");if(!items.length)return;
+    table(GROUPS[g],st.section,items);add([])});
+  add([]);
+  r=add([cell("Potpis (topla 1)",st.sign),cell("Potpis (topla 2)",st.sign),null,cell("Potpis (CW rest.)",st.sign)]);M.push(`B${r}:C${r}`);
+  r=add([cell(S.potpisi.t1,st.signLine),cell(S.potpisi.t2,st.signLine),cell("",st.signLine),cell(S.potpisi.cw,st.signLine)],30);M.push(`B${r}:C${r}`);
+  const sh1={name:"Utrošak",cols:[36,13,9,16],rows:R,merges:M,noGrid:true,footer:"Utrošak "+d};
+  // list 2: zbir
+  const T=[],M2=[];const add2=(row,h)=>{T.push(h?{cells:row,h}:row);return T.length};
+  r=add2([cell("Zbirni utrošak namirnica",st.title)],28);M2.push(`A${r}:F${r}`);
+  r=add2([cell("Miesen Place · CW restoran   ·   Datum: "+d,st.sub)]);M2.push(`A${r}:F${r}`);
+  add2([cell("Artikal",st.head),cell("JM",st.head),cell("Ukupno",st.head),cell("Dodato",st.head),cell("Oduzeto",st.head),cell("Gde se koristi",st.head)],22);
+  const tot=totals();
+  tot.forEach(t=>add2([cell(t.name,st.textBold),cell(t.jm,st.center),cell(Math.round(t.total*1000)/1000,t.total<0?st.totalNeg:st.total),
+    cell(Math.round(t.plus*1000)/1000,st.numMuted),cell(t.minus?Math.round(t.minus*1000)/1000:"",t.minus?st.minus:st.numMuted),
+    cell(t.parts.map(p=>p.src+" "+(p.q<0?"−"+fmt(-p.q):fmt(p.q))).join(";  "),st.textMuted)]));
+  add2([]);r=add2([cell("Ukupno artikala: "+tot.length,st.sub)]);
+  const sh2={name:"Zbir",cols:[30,8,12,11,11,58],rows:T,merges:M2,freeze:3,noGrid:true,landscape:true,footer:"Zbir "+d};
+  return W.build([sh2,sh1])}
+function toB64(u8){let bin="";for(let i=0;i<u8.length;i+=0x8000)bin+=String.fromCharCode.apply(null,u8.subarray(i,i+0x8000));return btoa(bin)}
+function fileName(){return "Utrosak_CW_"+fmtDate(S.date).replace(/\.$/,"")+".xlsx"}
+$("b-xlsx").onclick=()=>{const data=buildXlsx();
+  if(AN){AN.saveXlsx(fileName(),toB64(data));return}
+  const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([data]));a.download=fileName();a.click()};
 window.onXlsxSaved=ok=>toast(ok?"Excel fajl je sačuvan":"Čuvanje nije uspelo");
-$("b-xlsx").onclick=async()=>{
-  if(!window.XLSX){toast("Excel modul se nije učitao. Proverite internet i osvežite stranicu.");return}
-  const data=buildXlsx();const name="Utrosak_CW_"+fmtDate(S.date).replace(/\.$/,"")+".xlsx";
-  if(AN){let bin="";const u8=new Uint8Array(data);for(let i=0;i<u8.length;i+=0x8000)bin+=String.fromCharCode.apply(null,u8.subarray(i,i+0x8000));
-    AN.saveXlsx(name,btoa(bin));return}
-  {try{const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([data]));a.download=name;a.click();toast("Preuzimanje je pokrenuto")}catch(e){toast("Preuzimanje nije dostupno ovde.")}}};
+function summaryText(){return "Zbirni utrošak "+fmtDate(S.date)+"\n"+totals().map(r=>`${r.name}: ${fmt(r.total)} ${r.jm}`).join("\n")}
+$("b-share").onclick=()=>{const txt=summaryText();if(AN){AN.shareText("Utrošak "+fmtDate(S.date),txt);return}
+  (navigator.clipboard?navigator.clipboard.writeText(txt):Promise.reject()).then(()=>toast("Zbir je kopiran"),()=>toast("Kopiranje nije uspelo"))};
+
 // ---------- mejl ----------
 const EMAIL_RE=/^[^\s@,;]+@[^\s@,;]+\.[^\s@,;]+$/;
+const AUTO=!!(AN&&AN.sendAuto);
 function emails(){const l=lsGet("emails");return Array.isArray(l)?l:[]}
+function autoOn(){try{return AUTO&&AN.hasSenderPassword()}catch(e){return false}}
 function renderEmails(){const l=emails();
   $("m-list").innerHTML=l.length?l.map((e,i)=>`<span class="email"><span>${esc(e)}</span><button data-act="delmail" data-i="${i}" aria-label="Ukloni ${esc(e)}">×</button></span>`).join("")
    :`<span class="hint">Još nema adresa. Upišite adresu i pritisnite „Dodaj“.</span>`}
@@ -439,74 +524,49 @@ function addEmail(){const inp=$("m-new");const parts=inp.value.split(/[\s,;]+/).
   const l=emails();parts.forEach(x=>{if(!l.some(y=>y.toLowerCase()===x.toLowerCase()))l.push(x)});lsSet("emails",l);inp.value="";renderEmails();toast("Adresa je sačuvana")}
 $("m-add").onclick=addEmail;
 $("m-new").addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();addEmail()}});
-document.addEventListener("click",e=>{const b=e.target.closest('[data-act="delmail"]');if(!b)return;const l=emails();l.splice(+b.dataset.i,1);lsSet("emails",l);renderEmails()});
-function sendMail(){
-  if(busy)return;
-  if($("m-new").value.trim())addEmail();
-  const to=emails();
-  if(!to.length){show("zbir");setTimeout(()=>{$("mail-card").scrollIntoView({block:"center"});$("m-new").focus()},50);toast("Dodajte bar jednu e-mail adresu");return}
-  if(!window.XLSX){toast("Excel modul se nije učitao.");return}
-  appFlush();
-  const d=fmtDate(S.date);const name="Utrosak_CW_"+d.replace(/\.$/,"")+".xlsx";
-  const jela=S.jela.filter(j=>j.naziv).map(j=>j.naziv).join(", ");
-  const body="Utrošak za restoran za zaposlene, "+d+"\n"+(jela?"Jela: "+jela+"\n":"")+"\nZbirni utrošak:\n"+totals().map(r=>`${r.name}: ${fmt(r.total)} ${r.jm}`).join("\n")+"\n\nU prilogu je Excel fajl.";
-  const subject="Utrošak CW restoran "+d;
-  const data=buildXlsx();
-  if(AN&&AN.sendEmail){let bin="";const u8=new Uint8Array(data);for(let i=0;i<u8.length;i+=0x8000)bin+=String.fromCharCode.apply(null,u8.subarray(i,i+0x8000));
-    const m={to,subject,body,name,b64:btoa(bin)};
-    if(autoOn()){if(busy)return;setBusy(true);lastMail=m;AN.sendAuto(to.join(","),subject,body,name,m.b64);return}
-    openGmail(m);return}
-  location.href="mailto:"+to.map(encodeURIComponent).join(",")+"?subject="+encodeURIComponent(subject)+"&body="+encodeURIComponent(body)}
-const AUTO=!!(AN&&AN.sendAuto);
-function autoOn(){try{return AUTO&&AN.hasSenderPassword()}catch(e){return false}}
+function renderMailState(){const l=emails();const on=autoOn();
+  $("m-state").textContent=on?"šalje se odmah":"preko Gmail-a";$("m-state").className="chip "+(on?"ok":"");
+  $("m-to").innerHTML=l.length?"Prima: <b>"+l.map(esc).join(", ")+"</b>":"Nema upisanih adresa. Dodajte ih u kartici <b>Podešavanja</b>."}
 function renderSender(){if(!AUTO)return;$("snd").hidden=false;
   if(!$("snd-email").value)$("snd-email").value=AN.getSenderEmail();
-  const on=autoOn();$("snd-state").textContent=on?"automatsko slanje uključeno":"lozinka nije upisana";
-  $("snd-state").className="chip "+(on?"rep":"warn");$("snd-clear").hidden=!on;
-  $("snd-pass").placeholder=on?"sačuvana (upišite novu da je promenite)":"npr. abcd efgh ijkl mnop";
-  $("m-how").textContent=on?"Excel sa utroškom i zbirom šalje se odmah na ove adrese, sa naloga "+AN.getSenderEmail()+".":
-    "Excel sa utroškom i zbirom šalje se na ove adrese. Dok lozinka nije upisana, otvara se Gmail i ostaje da pritisnete „Pošalji“."}
+  const on=autoOn();$("snd-state").textContent=on?"uključeno":"lozinka nije upisana";$("snd-state").className="chip "+(on?"ok":"warn");
+  $("snd-clear").hidden=!on;$("snd-pass").placeholder=on?"sačuvana (upišite novu da je promenite)":"npr. abcd efgh ijkl mnop"}
 function renderSent(){const el=$("m-sent");if(S&&S.poslato){const t=new Date(S.poslato);el.hidden=false;
-  el.textContent="Poslato "+t.toLocaleDateString("sr-RS")+" u "+t.toLocaleTimeString("sr-RS",{hour:"2-digit",minute:"2-digit"})+(S.poslatoNa?" na: "+S.poslatoNa:"")}else el.hidden=true}
+  el.textContent="✓ Poslato "+t.toLocaleDateString("sr-RS")+" u "+t.toLocaleTimeString("sr-RS",{hour:"2-digit",minute:"2-digit"})+(S.poslatoNa?" na: "+S.poslatoNa:"")}else el.hidden=true}
 let busy=false,lastMail=null;
-function setBusy(b){busy=b;["b-mail","b-mail2","snd-save"].forEach(id=>{$(id).disabled=b;$(id).style.opacity=b?.6:1});
-  $("b-mail").textContent=$("b-mail2").textContent=b?"Šaljem…":"Pošalji Excel mejlom"}
+function setBusy(b){busy=b;["b-mail","snd-save"].forEach(id=>{$(id).disabled=b});$("b-mail").textContent=b?"Šaljem…":"Pošalji Excel mejlom"}
+function openGmail(m){if(AN&&AN.sendEmail)AN.sendEmail(m.to.join(","),m.subject,m.body,m.name,m.b64);
+  else location.href="mailto:"+m.to.map(encodeURIComponent).join(",")+"?subject="+encodeURIComponent(m.subject)+"&body="+encodeURIComponent(m.body)}
+$("b-mail").onclick=()=>{if(busy)return;const to=emails();
+  if(!to.length){show("pod");$("m-new").focus();toast("Dodajte bar jednu e-mail adresu");return}
+  saveNow();const d=fmtDate(S.date);
+  const jela=S.jela.filter(j=>j.naziv).map(j=>j.naziv).join(", ");
+  const body="Utrošak za restoran za zaposlene, "+d+"\n"+(jela?"Jela: "+jela+"\n":"")+"\n"+summaryText()+"\n\nU prilogu je Excel fajl.";
+  const m={to,subject:"Utrošak CW restoran "+d,body,name:fileName(),b64:toB64(buildXlsx())};
+  if(autoOn()){setBusy(true);lastMail=m;AN.sendAuto(to.join(","),m.subject,m.body,m.name,m.b64);return}
+  openGmail(m)};
 window.onAutoMailResult=(ok,msg)=>{setBusy(false);const m=lastMail;lastMail=null;
-  if(ok){if(m&&m.test){toast("Probni mejl je poslat. Automatsko slanje radi.");return}
-    S.poslato=Date.now();S.poslatoNa=m?m.to.join(", "):"";saveNow();renderSent();toast("Poslato na "+(m?m.to.length:"")+(m&&m.to.length===1?" adresu":" adrese"));return}
+  if(ok){if(m&&m.test){toast("Probni mejl je poslat. Automatsko slanje radi.");renderSender();return}
+    S.poslato=Date.now();S.poslatoNa=m?m.to.join(", "):"";saveNow();renderSent();toast("Poslato ✓");return}
   toast(msg||"Slanje nije uspelo.",m&&!m.test?()=>openGmail(m):null,"Gmail",9000)};
+window.onMailResult=ok=>{if(!ok)toast("Na telefonu nije pronađena mejl aplikacija")};
 $("snd-save").onclick=()=>{const em=$("snd-email").value.trim();const pw=$("snd-pass").value.replace(/\s+/g,"");
   if(!EMAIL_RE.test(em)){toast("Gmail adresa nije ispravna");return}
   if(!pw&&!autoOn()){toast("Upišite lozinku za aplikaciju");$("snd-pass").focus();return}
-  if(pw&&pw.length!==16){toast("Lozinka za aplikaciju ima 16 slova (bez razmaka). Proverite je.");return}
+  if(pw&&pw.length!==16){toast("Lozinka za aplikaciju ima 16 slova (bez razmaka).");return}
   AN.setSender(em,pw);$("snd-pass").value="";renderSender();
   setBusy(true);lastMail={test:true,to:[em]};
   AN.sendAuto(em,"Utrošak – probni mejl","Ovo je probni mejl iz aplikacije Utrošak. Automatsko slanje radi.","","")};
-$("snd-clear").onclick=()=>{AN.clearSenderPassword();renderSender();toast("Lozinka je uklonjena. Slanje ide preko Gmail aplikacije.")};
-function openGmail(m){AN.sendEmail(m.to.join(","),m.subject,m.body,m.name,m.b64)}
-renderSender();window.renderSentHook=renderSent;renderSent();
+$("snd-clear").onclick=()=>{AN.clearSenderPassword();renderSender();toast("Lozinka je uklonjena")};
 
-window.onMailResult=ok=>{if(!ok)toast("Na telefonu nije pronađena mejl aplikacija")};
-$("b-mail").onclick=sendMail;$("b-mail2").onclick=sendMail;
-renderEmails();
-
-$("b-copy").onclick=()=>{
-  const txt="Zbirni utrošak "+fmtDate(S.date)+"\n"+totals().map(r=>`${r.name}: ${fmt(r.total)} ${r.jm}`).join("\n");
-  if(AN){AN.shareText("Utrošak "+fmtDate(S.date),txt);return}
-  const fb=$("copy-fallback");
-  const p=navigator.clipboard&&navigator.clipboard.writeText?navigator.clipboard.writeText(txt):Promise.reject();
-  p.then(()=>toast("Zbir je kopiran")).catch(()=>{fb.hidden=false;fb.value=txt;fb.select();toast("Označite tekst i kopirajte ga")})};
-
-// ---------- boot ----------
-(async function boot(){
-  let last=lsGet("last");const d=today();
-  const local=lsGet("d:"+d);
-  S=local|| (last||lsDates().length? blank(d) : sample(d));
+// ---------- start ----------
+(function boot(){
+  const d=today();const local=lsGet("d:"+d);
+  S=local||(lsGet("last")||lsDates().length?blank(d):sample(d));
   renderAll();
   window.appFlush=()=>{if(saveT)saveNow()};
-  window.appBack=()=>{if(!$("v-unos").hidden)return false;show("unos");return true};
+  window.appBack=()=>{if(SH){closeSheet();return true}if(!$("v-unos").hidden){return false}show("unos");return true};
 })();
 })();
 </script>
-
 </body></html>
