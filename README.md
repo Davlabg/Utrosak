@@ -3,12 +3,11 @@
 Aplikacija za popunjavanje dnevnog utroška namirnica po šablonu „Utrošak za restoran za zaposlene”.
 
 - **Datum** – svaki datum je posebna lista (kartica **Istorija** otvara ranije liste).
-- **Jela** – naziv jela, a sastav je spisak kratkih redova (npr. *Crni luk … 3 kg*). Dodir na red ili na
-  **+ Dodaj artikal** otvara prozor za unos: naziv (sa predlozima ranije kucanih artikala), količina,
-  jedinica mere **kg / l / kom / kutija** i **+ Dodaje se / − Oduzima se**. *Sačuvaj i dodaj sledeći* ubrzava unos.
-  Ispod jela: koliko je napravljeno GN, preostala količina u GN, otpis u porcijama.
-- **Oduzimanje** – dugme **+ / −** na svakoj stavki; stavka sa − se oduzima od zbira (u Excel-u ide u kolonu *Otpis*).
-  Odeljak **Korekcije i povrat** uvek oduzima.
+- **Jela** – naziv jela, a sastav je spisak kratkih redova (npr. *Crni luk … 45 kg*). Dodir na red ili na
+  **+ Dodaj artikal** otvara prozor za unos: naziv (sa predlozima ranije kucanih artikala), jedinica mere
+  **kg / l / kom / kutija**, polje **+ Dodato** i polje **− Oduzeto**, a ispod **Konačno** (dodato − oduzeto).
+  Oba polja su kalkulator: `20+15+15`, `3×15`, decimalni zarez; tasteri **+ × ⌫** su pored polja.
+  *Sačuvaj i dodaj sledeći* ubrzava unos.
 - **Besplatni prilozi**, **Salata**, **Salate vezane**, **Korekcije**, **Potpisi** – sekcije koje se otvaraju dodirom.
 - **Zbir** – isti artikli iz svih jela, priloga i salata se automatski sabiraju po jedinici mere
   (velika/mala slova i kvačice ne smetaju: „crni luk” = „Crni Luk”). Uz svaki artikal piše odakle dolazi.

@@ -122,6 +122,19 @@ button{cursor:pointer;border:0;background:none;padding:0}
 .seg button:first-child{border-left:0}
 .seg button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink)}
 .seg.sign button[data-z="-1"][aria-pressed="true"]{background:var(--minus);color:#fff}
+.calc{display:flex;flex-direction:column;gap:6px}
+.calc .in{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px;align-items:center}
+.calc input{font-family:var(--f-display);font-size:1.35rem;font-weight:700;min-height:52px}
+.calc.minus input{color:var(--minus);border-color:var(--minus)}
+.calc.plus input{color:var(--accent)}
+.keys{display:flex;gap:4px}
+.keys button{width:44px;height:48px;border-radius:10px;background:var(--sunk);border:1px solid var(--line);font-size:1.25rem;font-weight:700}
+.res{font-size:.9rem;color:var(--muted);min-height:1.2em}
+.res.bad{color:var(--minus);font-weight:600}
+.net{display:flex;justify-content:space-between;align-items:baseline;background:var(--accent-soft);border-radius:10px;padding:10px 12px}
+.net b{font-family:var(--f-display);font-size:1.4rem}
+.net.neg b{color:var(--minus)}
+.line .nm small.calcnote{color:var(--muted);font-weight:500}
 .sheet .acts{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 
 .tabs{position:fixed;left:0;right:0;bottom:0;z-index:20;background:var(--surface);border-top:1px solid var(--line);
@@ -227,13 +240,20 @@ button{cursor:pointer;border:0;background:none;padding:0}
     <h2 id="sh-title">Artikal</h2>
     <div class="field"><label for="sh-name">Artikal</label><input type="text" id="sh-name" autocomplete="off" autocapitalize="sentences" spellcheck="false" placeholder="npr. Crni luk"></div>
     <div class="sugg" id="sh-sugg"></div>
-    <div class="qrow">
-      <div class="field"><label for="sh-qty">Količina</label><input inputmode="decimal" id="sh-qty" autocomplete="off" placeholder="0"></div>
-      <div class="field"><label>Jedinica mere</label><div class="seg" id="sh-units" role="group" aria-label="Jedinica mere"></div></div>
+    <div class="field"><label>Jedinica mere</label><div class="seg" id="sh-units" role="group" aria-label="Jedinica mere"></div></div>
+    <div class="calc plus">
+      <label for="sh-plus" class="eyebrow">+ Dodato</label>
+      <div class="in"><input inputmode="decimal" id="sh-plus" autocomplete="off" placeholder="npr. 50 ili 20+15+15">
+        <div class="keys" data-for="sh-plus"><button data-k="+" aria-label="Plus">+</button><button data-k="×" aria-label="Puta">×</button><button data-k="⌫" aria-label="Obriši znak">⌫</button></div></div>
+      <div class="res" id="res-plus"></div>
     </div>
-    <div class="seg sign" id="sh-sign" role="group" aria-label="Dodaje se ili oduzima">
-      <button data-z="1">+ Dodaje se</button><button data-z="-1">− Oduzima se</button>
+    <div class="calc minus">
+      <label for="sh-minus" class="eyebrow">− Oduzeto</label>
+      <div class="in"><input inputmode="decimal" id="sh-minus" autocomplete="off" placeholder="ako je deo vraćen ili otpisan">
+        <div class="keys" data-for="sh-minus"><button data-k="+" aria-label="Plus">+</button><button data-k="×" aria-label="Puta">×</button><button data-k="⌫" aria-label="Obriši znak">⌫</button></div></div>
+      <div class="res" id="res-minus"></div>
     </div>
+    <div class="net" id="sh-net"><span>Konačno</span><b class="num" id="sh-net-v">0</b></div>
     <div class="acts">
       <button class="btn btn-ghost" id="sh-cancel">Otkaži</button>
       <button class="btn btn-primary" id="sh-ok">Sačuvaj</button>
@@ -266,7 +286,13 @@ const GROUP_HINT={korekcije:"Sve ovde se oduzima od zbira (povrat u magacin, otp
 const $=id=>document.getElementById(id);
 const uid=()=>Math.random().toString(36).slice(2,9);
 const today=()=>{const d=new Date();d.setMinutes(d.getMinutes()-d.getTimezoneOffset());return d.toISOString().slice(0,10)};
-const item=(a="",k="",jm="kg",z=1)=>({id:uid(),artikal:a,kol:k,jm,znak:z});
+const item=(a="",k="",jm="kg",z=1)=>({id:uid(),artikal:a,plus:z>0?k:"",minus:z<0?k:"",jm});
+// stari zapis (kol + znak) -> dodato / oduzeto
+function fixItem(it){if("kol" in it||"znak" in it){const z=it.znak<0?-1:1;const k=it.kol==null?"":String(it.kol);
+  if(it.plus==null)it.plus=z>0?k:"";if(it.minus==null)it.minus=z<0?k:"";delete it.kol;delete it.znak}
+  if(it.plus==null)it.plus="";if(it.minus==null)it.minus="";return it}
+function fixState(s){if(!s)return s;(s.jela||[]).forEach(j=>(j.stavke||[]).forEach(fixItem));
+  ["prilozi","salate","vezane","korekcije"].forEach(g=>(s[g]||(s[g]=[])).forEach(fixItem));return s}
 const newDish=()=>({id:uid(),naziv:"",stavke:[],gn:"",preostalo:"",otpis:""});
 const CHEV='<svg class="chev" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M9 6l6 6-6 6"/></svg>';
 const TRASH='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg>';
@@ -278,7 +304,8 @@ function sample(date){const s=blank(date);s.primer=true;
    {id:uid(),naziv:"Pileći paprikaš",gn:"3",preostalo:"0,5",otpis:"4",stavke:[item("Pileći batak","12","kg"),item("Crni luk","3","kg"),item("Šargarepa","2","kg"),item("Ulje","1,5","l"),item("Pavlaka","1","kg"),item("Crni luk","0,5","kg",-1)]},
    {id:uid(),naziv:"Pasulj sa kobasicom",gn:"2",preostalo:"0",otpis:"0",stavke:[item("Pasulj","6","kg"),item("Kobasica","4","kg"),item("Crni luk","2","kg"),item("Ulje","0,5","l")]},
    {id:uid(),naziv:"Palačinke",gn:"1",preostalo:"",otpis:"",stavke:[item("Jaja","30","kom"),item("Mleko","4","l"),item("Eurokrem","2","kutija")]}];
-  s.prilozi[0].kol="1,2";s.prilozi[1].kol="0,8";s.salate[0].kol="5";s.salate[1].kol="4";
+  s.jela[0].stavke[0].plus="5+5+2";s.jela[0].stavke[1].minus="0,5";s.jela[0].stavke.pop();
+  s.prilozi[0].plus="1,2";s.prilozi[1].plus="0,8";s.salate[0].plus="5";s.salate[1].plus="2+2";
   s.korekcije=[item("Ulje","0,5","l",-1)];return s}
 
 let S=null,saveT=null;
@@ -287,6 +314,21 @@ let S=null,saveT=null;
 function num(v){if(v==null)return 0;const n=parseFloat(String(v).replace(/\s/g,"").replace(",","."));return isFinite(n)?n:0}
 function fmt(n){const r=Math.round(n*1000)/1000;return r.toLocaleString("sr-RS",{maximumFractionDigits:3})}
 function norm(s){return String(s||"").trim().toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/đ/g,"dj").replace(/\s+/g," ")}
+// kalkulator: + − × ÷ i zagrade, decimalni zarez ili tačka
+function calc(expr){
+  let e=String(expr??"").replace(/\s+/g,"").replace(/,/g,".").replace(/[×xX*]/g,"*").replace(/[÷:/]/g,"/").replace(/[−–]/g,"-");
+  if(!e)return{ok:true,v:0,empty:true,ops:false};
+  if(!/^[0-9.+\-*/()]+$/.test(e))return{ok:false,v:0};
+  let i=0;
+  function num(){let st=i;while(i<e.length&&/[0-9.]/.test(e[i]))i++;const t=e.slice(st,i);if(!t||(t.match(/\./g)||[]).length>1)throw 0;return parseFloat(t)}
+  function fac(){if(e[i]==="-"){i++;return -fac()}if(e[i]==="+"){i++;return fac()}if(e[i]==="("){i++;const v=add();if(e[i]!==")")throw 0;i++;return v}return num()}
+  function mul(){let v=fac();while(e[i]==="*"||e[i]==="/"){const o=e[i++];const r=fac();if(o==="/"){if(r===0)throw 0;v/=r}else v*=r}return v}
+  function add(){let v=mul();while(e[i]==="+"||e[i]==="-"){const o=e[i++];const r=mul();v=o==="+"?v+r:v-r}return v}
+  try{const v=add();if(i!==e.length||!isFinite(v))return{ok:false,v:0};return{ok:true,v:Math.round(v*1000)/1000,empty:false,ops:/[+\-*/]/.test(e.replace(/^[-+]/,""))}}
+  catch(_){return{ok:false,v:0}}}
+function itP(it){return calc(it.plus).v}
+function itM(it){return calc(it.minus).v}
+function itHas(it){return String(it.plus||"").trim()!==""||String(it.minus||"").trim()!==""}
 function esc(s){return String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]))}
 function fmtDate(d){const [y,m,dd]=d.split("-");return `${dd}.${m}.${y}.`}
 
@@ -318,23 +360,28 @@ function allItems(){const out=[];
   S.jela.forEach((j,i)=>j.stavke.forEach(it=>out.push({it,src:j.naziv||("Jelo "+(i+1))})));
   Object.keys(GROUPS).forEach(g=>S[g].forEach(it=>out.push({it,src:GROUPS[g]})));return out}
 function totals(){const map=new Map();
-  for(const {it,src} of allItems()){const n=norm(it.artikal);const q=num(it.kol);if(!n||!q)continue;
+  for(const {it,src} of allItems()){const n=norm(it.artikal);const p=itP(it),m=itM(it);if(!n||(!p&&!m))continue;
     const key=n+"|"+it.jm;let r=map.get(key);
     if(!r){r={name:it.artikal.trim(),jm:it.jm,plus:0,minus:0,parts:[],n};map.set(key,r)}
-    if(it.znak<0)r.minus+=q;else r.plus+=q;r.parts.push({src,q:q*it.znak})}
+    r.plus+=p;r.minus+=m;r.parts.push({src,p,m})}
   const rows=[...map.values()];const byName={};rows.forEach(r=>(byName[r.n]=byName[r.n]||[]).push(r.jm));
-  rows.forEach(r=>{r.total=r.plus-r.minus;r.multiUnit=byName[r.n].length>1});
+  rows.forEach(r=>{r.plus=Math.round(r.plus*1000)/1000;r.minus=Math.round(r.minus*1000)/1000;r.total=Math.round((r.plus-r.minus)*1000)/1000;r.multiUnit=byName[r.n].length>1});
   return rows.sort((a,b)=>a.name.localeCompare(b.name,"sr"))}
 function repeatedSet(){const c={};S.jela.forEach(j=>{const seen=new Set();j.stavke.forEach(it=>{const n=norm(it.artikal);if(n&&!seen.has(n)){seen.add(n);c[n]=(c[n]||0)+1}})});
   return new Set(Object.keys(c).filter(k=>c[k]>1))}
 
 // ---------- prikaz: unos ----------
 function lineHTML(it,path,rep){
-  const q=num(it.kol);const has=String(it.kol).trim()!=="";
-  return `<button class="line${it.znak<0?" neg":""}${has?"":" empty"}" data-act="edit" data-path="${path}" data-id="${it.id}">
-    <span class="sg">${it.znak<0?"−":"+"}</span>
-    <span class="nm">${esc(it.artikal)||"<i>bez naziva</i>"}${rep&&rep.has(norm(it.artikal))?"<small>i u drugim jelima · sabira se</small>":""}</span>
-    <span class="q num">${has?(it.znak<0?"−":"")+fmt(q)+` <small>${esc(it.jm)}</small>`:"upiši"}</span></button>`}
+  const has=itHas(it);const cp=calc(it.plus),cm=calc(it.minus);const p=cp.v,m=cm.v,net=Math.round((p-m)*1000)/1000;
+  const notes=[];
+  if(m)notes.push(`dodato ${p?fmt(p):"0"} · oduzeto ${fmt(m)}`);
+  else if(cp.ops)notes.push(esc(String(it.plus).replace(/\*/g,"×"))+" = "+fmt(p));
+  if(m&&cm.ops)notes.push("oduzeto: "+esc(String(it.minus).replace(/\*/g,"×")));
+  const sg=p&&m?"±":(m?"−":"+");
+  return `<button class="line${net<0?" neg":""}${has?"":" empty"}" data-act="edit" data-path="${path}" data-id="${it.id}">
+    <span class="sg">${sg}</span>
+    <span class="nm">${esc(it.artikal)||"<i>bez naziva</i>"}${notes.map(n=>`<small class="calcnote">${n}</small>`).join("")}${rep&&rep.has(norm(it.artikal))?"<small>i u drugim jelima · sabira se</small>":""}</span>
+    <span class="q num">${has?fmt(net)+` <small>${esc(it.jm)}</small>`:"upiši"}</span></button>`}
 function renderDishes(){const rep=repeatedSet();
   $("dishes").innerHTML=S.jela.map((j,i)=>`<div class="card" data-dish="${j.id}">
     <div class="dish-h"><span class="no">${i+1}.</span><input type="text" class="grow" data-df="naziv" value="${esc(j.naziv)}" placeholder="Naziv jela" aria-label="Naziv jela" id="n-${j.id}" autocomplete="off">
@@ -349,7 +396,7 @@ function renderDishes(){const rep=repeatedSet();
     </div></div>`).join("")}
 function openSecs(){const o=lsGet("open");return o&&typeof o==="object"?o:{}}
 function renderGroups(){const o=openSecs();
-  $("groups").innerHTML=Object.keys(GROUPS).map(g=>{const filled=S[g].filter(it=>it.artikal&&String(it.kol).trim()!=="").length;
+  $("groups").innerHTML=Object.keys(GROUPS).map(g=>{const filled=S[g].filter(it=>it.artikal&&itHas(it)).length;
     const sum=filled?`${filled} upisano`:(S[g].length?"ništa nije upisano":"prazno");
     return `<div class="card sec${o[g]?" open":""}" id="sec-${g}">
       <button class="sec-h" data-sec="${g}"><span class="grow"><h2>${GROUPS[g]}</h2><span class="hint">${sum}</span></span>${filled?`<span class="chip ok">${filled}</span>`:""}${CHEV}</button>
@@ -369,17 +416,25 @@ function ctxTitle(path){const [g,dish]=path.split(":");if(g==="jela"){const i=S.
 function openSheet(path,id){
   const arr=arrFor(path);const it=id?arr.find(x=>x.id===id):null;
   const last=arr[arr.length-1];
-  SH={path,id:it?it.id:null,z:it?it.znak:(path==="korekcije"?-1:1),jm:it?it.jm:(last?last.jm:"kg")};
+  SH={path,id:it?it.id:null,jm:it?it.jm:(last?last.jm:"kg")};
   $("sh-title").innerHTML=(it?"Izmena artikla":"Novi artikal")+`<small>${esc(ctxTitle(path))}</small>`;
-  $("sh-name").value=it?it.artikal:"";$("sh-qty").value=it?it.kol:"";
+  $("sh-name").value=it?it.artikal:"";$("sh-plus").value=it?it.plus:"";$("sh-minus").value=it?it.minus:"";
   $("sh-del").hidden=!it;$("sh-next").hidden=!!it;
   paintSheet();renderSugg();
   $("scrim").hidden=false;$("sheet").hidden=false;$("sheet").scrollTop=0;
-  setTimeout(()=>{(it&&it.artikal?$("sh-qty"):$("sh-name")).focus();if(it&&it.artikal)$("sh-qty").select()},60)}
+  const qf=path==="korekcije"?$("sh-minus"):$("sh-plus");
+  setTimeout(()=>{const f=it&&it.artikal?qf:$("sh-name");f.focus();if(f!==$("sh-name"))f.setSelectionRange(f.value.length,f.value.length)},60)}
 function closeSheet(){SH=null;$("sheet").hidden=true;$("scrim").hidden=true;if(document.activeElement)document.activeElement.blur()}
 function paintSheet(){
   $("sh-units").innerHTML=UNITS.map(u=>`<button data-u="${u}" aria-pressed="${SH.jm===u}">${u}</button>`).join("");
-  $("sh-sign").querySelectorAll("button").forEach(b=>b.setAttribute("aria-pressed",String(+b.dataset.z===SH.z)))}
+  calcPreview()}
+function calcPreview(){if(!SH)return;const u=SH.jm;
+  const show=(id,c,raw)=>{const el=$(id);el.className="res"+(c.ok?"":" bad");
+    el.textContent=!c.ok?"Račun nije ispravan (npr. 20+15+15 ili 3×15)":(c.ops?"= "+fmt(c.v)+" "+u:"")};
+  const cp=calc($("sh-plus").value),cm=calc($("sh-minus").value);
+  show("res-plus",cp);show("res-minus",cm);
+  const net=Math.round((cp.v-cm.v)*1000)/1000;$("sh-net-v").textContent=fmt(net)+" "+u;
+  $("sh-net").classList.toggle("neg",net<0);$("sh-net").hidden=cp.empty&&cm.empty}
 function renderSugg(){
   const q=norm($("sh-name").value);const list=knownNames();
   let hits;
@@ -392,22 +447,31 @@ function renderSugg(){
 function saveSheet(next){
   const name=$("sh-name").value.trim();
   if(!name){toast("Upišite naziv artikla");$("sh-name").focus();return}
+  const pv=$("sh-plus").value.trim(),mv=$("sh-minus").value.trim();
+  if(!calc(pv).ok){toast("Proverite polje Dodato");$("sh-plus").focus();return}
+  if(!calc(mv).ok){toast("Proverite polje Oduzeto");$("sh-minus").focus();return}
   const arr=arrFor(SH.path);let it=SH.id?arr.find(x=>x.id===SH.id):null;
   if(!it){it=item();arr.push(it)}
-  it.artikal=name;it.kol=$("sh-qty").value.trim();it.jm=SH.jm;it.znak=SH.z;
+  it.artikal=name;it.plus=pv;it.minus=mv;it.jm=SH.jm;
   remember(it);touched();
   const path=SH.path;rerender(path);
   if(next){openSheet(path,null)}else closeSheet()}
 function rerender(path){if(path.startsWith("jela"))renderDishes();else renderGroups()}
 
 $("sh-name").addEventListener("input",renderSugg);
-$("sh-name").addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();$("sh-qty").focus()}});
-$("sh-qty").addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();saveSheet(!SH.id)}});
+$("sh-name").addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();(SH.path==="korekcije"?$("sh-minus"):$("sh-plus")).focus()}});
+["sh-plus","sh-minus"].forEach(id=>{$(id).addEventListener("input",calcPreview);
+  $(id).addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();saveSheet(!SH.id)}})});
+// tasteri + × ⌫ (tastatura za brojeve na telefonu često nema +); fokus ostaje u polju
+document.querySelectorAll(".keys").forEach(k=>{
+  k.addEventListener("pointerdown",e=>{if(e.target.closest("button"))e.preventDefault()});
+  k.addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;const inp=$(k.dataset.for);
+    let v=inp.value;if(b.dataset.k==="⌫")v=v.slice(0,-1);else{v=v.replace(/[+×*\-−]\s*$/,"");if(v.trim()==="")return inp.focus();v+=b.dataset.k}
+    inp.value=v;inp.focus();inp.setSelectionRange(v.length,v.length);calcPreview()})});
 $("sh-sugg").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;
   $("sh-name").value=b.dataset.name;if(b.dataset.jm&&UNITS.includes(b.dataset.jm)){SH.jm=b.dataset.jm;paintSheet()}
-  renderSugg();$("sh-qty").focus()});
+  renderSugg();(SH.path==="korekcije"?$("sh-minus"):$("sh-plus")).focus()});
 $("sh-units").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;SH.jm=b.dataset.u;paintSheet()});
-$("sh-sign").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;SH.z=+b.dataset.z;paintSheet()});
 $("sh-ok").onclick=()=>saveSheet(false);
 $("sh-next").onclick=()=>saveSheet(true);
 $("sh-cancel").onclick=closeSheet;$("scrim").onclick=closeSheet;
@@ -446,60 +510,61 @@ function show(v){if(SH)closeSheet();["unos","zbir","ist","pod"].forEach(x=>{$("v
 let toastT;
 function toast(msg,onAct,label,ms){$("toast-t").textContent=msg;const b=$("toast-b");b.hidden=!onAct;b.textContent=label||"Vrati";
   b.onclick=()=>{$("toast").hidden=true;onAct&&onAct()};$("toast").hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>$("toast").hidden=true,ms||4500)}
-function openDate(date){S=lsGet("d:"+date)||blank(date);if(!S.date)S.date=date;renderAll()}
+function openDate(date){S=fixState(lsGet("d:"+date))||blank(date);if(!S.date)S.date=date;renderAll()}
 
 // ---------- zbir, istorija ----------
 function renderZbir(){const all=totals();const q=norm($("z-q").value);const rows=all.filter(r=>!q||r.n.includes(q));
   $("z-count").textContent=all.length+" artikala";
   $("z-list").innerHTML=rows.map(r=>{
-    const parts=r.parts.map(p=>p.q<0?`<span class="m">${esc(p.src)} −${fmt(-p.q)}</span>`:`${esc(p.src)} ${fmt(p.q)}`).join(" · ");
+    const parts=r.parts.map(p=>esc(p.src)+(p.p?" +"+fmt(p.p):"")+(p.m?` <span class="m">−${fmt(p.m)}</span>`:"")).join(" · ");
+    const pm=r.minus?`<div class="d num">dodato <b>${fmt(r.plus)}</b> · oduzeto <b class="m" style="color:var(--minus)">${fmt(r.minus)}</b></div>`:"";
     return `<div class="sum${r.total<0?" neg":""}"><div class="t">${esc(r.name)} ${r.multiUnit?`<span class="chip warn">i u drugoj jedinici</span>`:""}</div>
-      <div class="v num">${fmt(r.total)} <small>${esc(r.jm)}</small></div><div class="d num">${parts}</div></div>`}).join("")
+      <div class="v num">${fmt(r.total)} <small>${esc(r.jm)}</small></div>${pm}<div class="d num">${parts}</div></div>`}).join("")
     ||`<p class="hint">Još nema unetih količina.</p>`}
 function renderHist(){const dates=new Set(lsDates());dates.add(S.date);
-  $("h-list").innerHTML=[...dates].sort().reverse().map(d=>{const s=d===S.date?S:lsGet("d:"+d);const n=s?s.jela.filter(j=>j.naziv).map(j=>j.naziv).join(", "):"";
+  $("h-list").innerHTML=[...dates].sort().reverse().map(d=>{const s=d===S.date?S:lsGet("d:"+d);const n=s&&s.jela?s.jela.filter(j=>j.naziv).map(j=>j.naziv).join(", "):"";
     const sent=s&&s.poslato?`<span class="chip ok">poslato</span>`:"";
     return `<button data-date="${d}"><span style="min-width:0"><span class="num" style="font-weight:600">${fmtDate(d)}</span><br><span class="hint">${esc(n)||"bez jela"}</span></span><span class="row" style="flex:none">${sent}<span class="chip">${d===S.date?"otvorena":"otvori"}</span></span></button>`}).join("")}
 
 // ---------- Excel ----------
 function buildXlsx(){
   const W=window.XlsxWriter,st=W.S,d=fmtDate(S.date);
-  const cell=(v,s)=>({v,s});const n=v=>String(v).trim()===""?"":num(v);
-  // list 1: utrošak po šablonu
+  const cell=(v,s)=>({v,s});const r3=v=>Math.round(v*1000)/1000;
+  // list "Utrošak": po šablonu, svako jelo posebna tabela
   const R=[],M=[];const add=(row,h)=>{R.push(h?{cells:row,h}:row);return R.length};
-  let r=add([cell("Utrošak za restoran za zaposlene",st.title)],28);M.push(`A${r}:D${r}`);
-  r=add([cell("Miesen Place · CW restoran",st.sub),null,cell("Datum: "+d,st.textBold),cell("",st.textBold)]);M.push(`C${r}:D${r}`);
+  const full=(v,s,h)=>{const r=add([cell(v,s),cell("",s),cell("",s),cell("",s),cell("",s)],h);M.push(`A${r}:E${r}`);return r};
+  let r=add([cell("Utrošak za restoran za zaposlene",st.title)],28);M.push(`A${r}:E${r}`);
+  r=add([cell("Miesen Place · CW restoran",st.sub),null,null,cell("Datum: "+d,st.textBold),cell("",st.textBold)]);M.push(`D${r}:E${r}`);
   add([]);
-  const table=(title,titleStyle,items,num2)=>{
-    r=add([cell(title,titleStyle),cell("",titleStyle),cell("",titleStyle),cell("",titleStyle)],22);M.push(`A${r}:D${r}`);
-    add([cell("Artikal",st.head),cell("Količina",st.head),cell("JM",st.head),cell("Otpis / oduzeto",st.head)],20);
-    items.forEach(it=>add(it.znak<0?[cell(it.artikal,st.text),cell("",st.num),cell(it.jm,st.center),cell(n(it.kol),st.minus)]
-      :[cell(it.artikal,st.text),cell(n(it.kol),st.num),cell(it.jm,st.center),cell("",st.num)]))};
+  const table=(title,titleStyle,items)=>{
+    full(title,titleStyle,22);
+    add([cell("Artikal",st.head),cell("Dodato",st.head),cell("Oduzeto",st.head),cell("Konačno",st.head),cell("JM",st.head)],20);
+    items.forEach(it=>{const p=itP(it),m=itM(it);
+      add([cell(it.artikal,st.text),cell(p?p:"",st.num),cell(m?m:"",m?st.minus:st.num),cell(itHas(it)?r3(p-m):"",p-m<0?st.totalNeg:st.total),cell(it.jm,st.center)])})};
   S.jela.forEach((j,i)=>{
     const items=j.stavke.filter(it=>it.artikal);
     if(!items.length&&!j.naziv)return;
     table((i+1)+". "+(j.naziv||"Jelo "+(i+1)),st.dish,items);
     if(j.gn!==""||j.preostalo!==""||j.otpis!==""){
-      const t=[j.gn!==""?"Napravljeno: "+j.gn+" GN":"",j.preostalo!==""?"Preostalo: "+j.preostalo+" GN":"",j.otpis!==""?"Otpis: "+j.otpis+" porcija":""].filter(Boolean).join("     ·     ");
-      r=add([cell(t,st.label),cell("",st.label),cell("",st.label),cell("",st.label)]);M.push(`A${r}:D${r}`)}
+      full([j.gn!==""?"Napravljeno: "+j.gn+" GN":"",j.preostalo!==""?"Preostalo: "+j.preostalo+" GN":"",j.otpis!==""?"Otpis: "+j.otpis+" porcija":""].filter(Boolean).join("     ·     "),st.label)}
     add([])});
-  Object.keys(GROUPS).forEach(g=>{const items=S[g].filter(it=>it.artikal&&String(it.kol).trim()!=="");if(!items.length)return;
+  Object.keys(GROUPS).forEach(g=>{const items=S[g].filter(it=>it.artikal&&itHas(it));if(!items.length)return;
     table(GROUPS[g],st.section,items);add([])});
   add([]);
-  r=add([cell("Potpis (topla 1)",st.sign),cell("Potpis (topla 2)",st.sign),null,cell("Potpis (CW rest.)",st.sign)]);M.push(`B${r}:C${r}`);
-  r=add([cell(S.potpisi.t1,st.signLine),cell(S.potpisi.t2,st.signLine),cell("",st.signLine),cell(S.potpisi.cw,st.signLine)],30);M.push(`B${r}:C${r}`);
-  const sh1={name:"Utrošak",cols:[36,13,9,16],rows:R,merges:M,noGrid:true,footer:"Utrošak "+d};
-  // list 2: zbir
+  r=add([cell("Potpis (topla 1)",st.sign),cell("Potpis (topla 2)",st.sign),null,cell("Potpis (CW rest.)",st.sign),null]);M.push(`B${r}:C${r}`,`D${r}:E${r}`);
+  r=add([cell(S.potpisi.t1,st.signLine),cell(S.potpisi.t2,st.signLine),cell("",st.signLine),cell(S.potpisi.cw,st.signLine),cell("",st.signLine)],30);M.push(`B${r}:C${r}`,`D${r}:E${r}`);
+  const sh1={name:"Utrošak",cols:[34,11,11,12,8],rows:R,merges:M,noGrid:true,footer:"Utrošak "+d};
+  // list "Zbir"
   const T=[],M2=[];const add2=(row,h)=>{T.push(h?{cells:row,h}:row);return T.length};
   r=add2([cell("Zbirni utrošak namirnica",st.title)],28);M2.push(`A${r}:F${r}`);
   r=add2([cell("Miesen Place · CW restoran   ·   Datum: "+d,st.sub)]);M2.push(`A${r}:F${r}`);
-  add2([cell("Artikal",st.head),cell("JM",st.head),cell("Ukupno",st.head),cell("Dodato",st.head),cell("Oduzeto",st.head),cell("Gde se koristi",st.head)],22);
+  add2([cell("Artikal",st.head),cell("JM",st.head),cell("Dodato",st.head),cell("Oduzeto",st.head),cell("Konačno",st.head),cell("Gde se koristi",st.head)],22);
   const tot=totals();
-  tot.forEach(t=>add2([cell(t.name,st.textBold),cell(t.jm,st.center),cell(Math.round(t.total*1000)/1000,t.total<0?st.totalNeg:st.total),
-    cell(Math.round(t.plus*1000)/1000,st.numMuted),cell(t.minus?Math.round(t.minus*1000)/1000:"",t.minus?st.minus:st.numMuted),
-    cell(t.parts.map(p=>p.src+" "+(p.q<0?"−"+fmt(-p.q):fmt(p.q))).join(";  "),st.textMuted)]));
-  add2([]);r=add2([cell("Ukupno artikala: "+tot.length,st.sub)]);
-  const sh2={name:"Zbir",cols:[30,8,12,11,11,58],rows:T,merges:M2,freeze:3,noGrid:true,landscape:true,footer:"Zbir "+d};
+  tot.forEach(t=>add2([cell(t.name,st.textBold),cell(t.jm,st.center),cell(t.plus?t.plus:"",st.num),cell(t.minus?t.minus:"",t.minus?st.minus:st.num),
+    cell(t.total,t.total<0?st.totalNeg:st.total),
+    cell(t.parts.map(p=>p.src+(p.p?" +"+fmt(p.p):"")+(p.m?" −"+fmt(p.m):"")).join(";  "),st.textMuted)]));
+  add2([]);add2([cell("Ukupno artikala: "+tot.length,st.sub)]);
+  const sh2={name:"Zbir",cols:[30,8,11,11,12,56],rows:T,merges:M2,freeze:3,noGrid:true,landscape:true,footer:"Zbir "+d};
   return W.build([sh2,sh1])}
 function toB64(u8){let bin="";for(let i=0;i<u8.length;i+=0x8000)bin+=String.fromCharCode.apply(null,u8.subarray(i,i+0x8000));return btoa(bin)}
 function fileName(){return "Utrosak_CW_"+fmtDate(S.date).replace(/\.$/,"")+".xlsx"}
@@ -507,7 +572,7 @@ $("b-xlsx").onclick=()=>{const data=buildXlsx();
   if(AN){AN.saveXlsx(fileName(),toB64(data));return}
   const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([data]));a.download=fileName();a.click()};
 window.onXlsxSaved=ok=>toast(ok?"Excel fajl je sačuvan":"Čuvanje nije uspelo");
-function summaryText(){return "Zbirni utrošak "+fmtDate(S.date)+"\n"+totals().map(r=>`${r.name}: ${fmt(r.total)} ${r.jm}`).join("\n")}
+function summaryText(){return "Zbirni utrošak "+fmtDate(S.date)+"\n"+totals().map(r=>`${r.name}: ${fmt(r.total)} ${r.jm}`+(r.minus?` (dodato ${fmt(r.plus)}, oduzeto ${fmt(r.minus)})`:"")).join("\n")}
 $("b-share").onclick=()=>{const txt=summaryText();if(AN){AN.shareText("Utrošak "+fmtDate(S.date),txt);return}
   (navigator.clipboard?navigator.clipboard.writeText(txt):Promise.reject()).then(()=>toast("Zbir je kopiran"),()=>toast("Kopiranje nije uspelo"))};
 
@@ -562,7 +627,7 @@ $("snd-clear").onclick=()=>{AN.clearSenderPassword();renderSender();toast("Lozin
 // ---------- start ----------
 (function boot(){
   const d=today();const local=lsGet("d:"+d);
-  S=local||(lsGet("last")||lsDates().length?blank(d):sample(d));
+  S=fixState(local)||(lsGet("last")||lsDates().length?blank(d):sample(d));
   renderAll();
   window.appFlush=()=>{if(saveT)saveNow()};
   window.appBack=()=>{if(SH){closeSheet();return true}if(!$("v-unos").hidden){return false}show("unos");return true};
