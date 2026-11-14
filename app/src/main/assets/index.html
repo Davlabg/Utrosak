@@ -46,6 +46,9 @@ button{cursor:pointer;border:0;background:none;padding:0}
 .chip.ok{background:var(--accent-soft);color:var(--accent)}
 .chip.warn{background:var(--warn-soft);color:var(--warn)}
 .status{font-size:.8rem;color:var(--muted)}
+.warnbox{background:var(--minus-soft);color:var(--minus);border-radius:10px;padding:10px 12px;font-weight:600;font-size:.92rem;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.warnbox span{flex:1 1 180px}
+input.missing{border-color:var(--minus);border-width:2px;background:var(--minus-soft)}
 
 /* zaglavlje */
 .top{display:flex;align-items:flex-end;gap:10px}
@@ -188,6 +191,7 @@ button{cursor:pointer;border:0;background:none;padding:0}
     <div class="card">
       <div class="row"><h2 class="grow">Pošalji utrošak</h2><span class="chip" id="m-state"></span></div>
       <p class="hint" id="m-to"></p>
+      <div class="warnbox" id="m-sig" hidden><span id="m-sig-t"></span><button class="btn btn-ghost" id="m-sig-go">Upiši potpise</button></div>
       <button class="btn btn-primary" id="b-mail">Pošalji Excel mejlom</button>
       <span class="status" id="m-sent" hidden></span>
       <div class="row">
@@ -404,9 +408,11 @@ function renderGroups(){const o=openSecs();
         ${S[g].length?`<div class="lines">${S[g].map(it=>lineHTML(it,g)).join("")}</div>`:""}
         <button class="add" data-act="add" data-path="${g}">+ Dodaj</button></div></div>`}).join("");
   $("sec-pot").classList.toggle("open",!!o.pot);renderPotSum()}
-function renderPotSum(){const p=S.potpisi;const n=[p.t1,p.t2,p.cw].filter(x=>x.trim()).length;$("pot-sum").textContent=n?`${n} od 3 upisano`:"nije upisano"}
+function renderPotSum(){const p=S.potpisi;const n=[p.t1,p.t2,p.cw].filter(x=>x.trim()).length;
+  $("pot-sum").textContent=n===3?"sva 3 upisana":`${n} od 3 upisano · obavezno pre slanja`;$("pot-sum").style.color=n===3?"":"var(--minus)"}
 function renderAll(){
   $("f-date").value=S.date;$("s-t1").value=S.potpisi.t1;$("s-t2").value=S.potpisi.t2;$("s-cw").value=S.potpisi.cw;
+  ["s-t1","s-t2","s-cw"].forEach(id=>$(id).classList.remove("missing"));
   $("sample-banner").hidden=!S.primer;renderDishes();renderGroups();renderSent()}
 
 // ---------- prozor za artikal ----------
@@ -483,7 +489,7 @@ $("sh-del").onclick=()=>{const path=SH.path;const arr=arrFor(path);const idx=arr
 document.addEventListener("input",e=>{const t=e.target;
   const dish=t.closest("[data-dish]");
   if(dish&&t.dataset.df){S.jela.find(j=>j.id===dish.dataset.dish)[t.dataset.df]=t.value;touched();return}
-  if(t.id==="s-t1"||t.id==="s-t2"||t.id==="s-cw"){S.potpisi[t.id.slice(2)]=t.value;renderPotSum();touched();return}
+  if(t.id==="s-t1"||t.id==="s-t2"||t.id==="s-cw"){S.potpisi[t.id.slice(2)]=t.value;if(t.value.trim())t.classList.remove("missing");renderPotSum();touched();return}
   if(t.id==="z-q")renderZbir()});
 document.addEventListener("change",e=>{if(e.target.dataset.df==="naziv")renderDishes()});
 $("f-date").addEventListener("change",e=>{if(!e.target.value)return;saveNow();openDate(e.target.value)});
@@ -590,6 +596,8 @@ function addEmail(){const inp=$("m-new");const parts=inp.value.split(/[\s,;]+/).
 $("m-add").onclick=addEmail;
 $("m-new").addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();addEmail()}});
 function renderMailState(){const l=emails();const on=autoOn();
+  const miss=missingSigs();$("m-sig").hidden=!miss.length;
+  $("m-sig-t").textContent="Pre slanja moraju da se upišu potpisi. Nedostaje: "+miss.map(k=>SIG_NAMES[k]).join(", ")+".";
   $("m-state").textContent=on?"šalje se odmah":"preko Gmail-a";$("m-state").className="chip "+(on?"ok":"");
   $("m-to").innerHTML=l.length?"Prima: <b>"+l.map(esc).join(", ")+"</b>":"Nema upisanih adresa. Dodajte ih u kartici <b>Podešavanja</b>."}
 function renderSender(){if(!AUTO)return;$("snd").hidden=false;
@@ -602,7 +610,16 @@ let busy=false,lastMail=null;
 function setBusy(b){busy=b;["b-mail","snd-save"].forEach(id=>{$(id).disabled=b});$("b-mail").textContent=b?"Šaljem…":"Pošalji Excel mejlom"}
 function openGmail(m){if(AN&&AN.sendEmail)AN.sendEmail(m.to.join(","),m.subject,m.body,m.name,m.b64);
   else location.href="mailto:"+m.to.map(encodeURIComponent).join(",")+"?subject="+encodeURIComponent(m.subject)+"&body="+encodeURIComponent(m.body)}
-$("b-mail").onclick=()=>{if(busy)return;const to=emails();
+const SIG_NAMES={t1:"Topla 1",t2:"Topla 2",cw:"CW restoran"};
+function missingSigs(){return Object.keys(SIG_NAMES).filter(k=>!String(S.potpisi[k]||"").trim())}
+function goToSigs(){const miss=missingSigs();show("unos");const o=openSecs();o.pot=true;lsSet("open",o);$("sec-pot").classList.add("open");
+  Object.keys(SIG_NAMES).forEach(k=>$("s-"+k).classList.toggle("missing",miss.includes(k)));
+  if(miss.length){const f=$("s-"+miss[0]);setTimeout(()=>{f.scrollIntoView({block:"center"});f.focus()},80)}}
+$("m-sig-go").onclick=goToSigs;
+$("b-mail").onclick=()=>{if(busy)return;
+  const miss=missingSigs();
+  if(miss.length){toast("Slanje nije dozvoljeno: upišite potpis – "+miss.map(k=>SIG_NAMES[k]).join(", "),null,null,6000);goToSigs();return}
+  const to=emails();
   if(!to.length){show("pod");$("m-new").focus();toast("Dodajte bar jednu e-mail adresu");return}
   saveNow();const d=fmtDate(S.date);
   const jela=S.jela.filter(j=>j.naziv).map(j=>j.naziv).join(", ");

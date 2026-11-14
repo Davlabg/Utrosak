@@ -23,6 +23,8 @@ Aplikacija za popunjavanje dnevnog utroška namirnica po šablonu „Utrošak za
   `utrosak.cw.restoran@gmail.com`) i **lozinku za aplikaciju** od 16 slova (myaccount.google.com/apppasswords).
   Lozinka se čuva samo na telefonu. Tada dugme **Pošalji Excel mejlom** šalje odmah, bez otvaranja Gmail-a
   (preko smtp.gmail.com, port 465). Dugme „Sačuvaj i pošalji probni mejl” proverava da li prijava radi.
+- **Potpisi su obavezni za slanje** – dok Topla 1, Topla 2 i CW restoran nisu upisani, mejl se ne šalje:
+  aplikacija upozori, otvori sekciju Potpisi i označi crveno polja koja fale.
 - **Podeli zbir** – šalje zbir kao tekst (Viber, WhatsApp, e-mail…).
 - Podaci se čuvaju automatski na telefonu. Aplikacija radi bez interneta.
 
